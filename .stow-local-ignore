@@ -1,0 +1,8 @@
+README\.md
+LICENSE
+\.git
+\.gitignore
+\.stow-local-ignore
+install\.sh
+uninstall\.sh
+\.idea
