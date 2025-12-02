@@ -6,3 +6,5 @@ LICENSE
 install\.sh
 uninstall\.sh
 \.idea
+\.DS_Store
+
