@@ -29,4 +29,7 @@ Files listed in `.stow-local-ignore` (README, LICENSE, scripts, etc.) are exclud
 
 ## Custom Claude Commands
 
-The repository includes a custom slash command `/mn-github-issue` for creating well-structured GitHub issues. The command accepts a description and generates a complete issue with title, description, steps to reproduce, expected/actual behavior, labels, and acceptance criteria.
+The repository includes custom slash commands for project management tasks:
+
+- `/mn-github-issue` - Creates well-structured GitHub issues. Accepts a description and generates a complete issue with title, description, steps to reproduce, expected/actual behavior, labels, and acceptance criteria.
+- `/mn-github-pr-review` - Performs thorough pull request reviews as a project maintainer. Accepts a PR number or URL and provides a comprehensive code review covering code quality, security, performance, testing, and documentation.
