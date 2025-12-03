@@ -114,5 +114,17 @@ gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments \
   --field line=<LINE_NUMBER>
 ```
 
+For example:
+```shell
+# View PR #42 details
+gh pr view 42 --repo manusa/ai
+
+# Approve PR #42 with a review comment
+gh pr review 42 --repo manusa/ai --approve --body "## Pull Request Review: #42\n\n### Summary\nThis PR adds a new feature to improve the user experience.\n\n### Review Verdict\nAPPROVE\n\n### Findings\n\n#### Critical Issues (Must Fix)\nNone\n\n#### Suggestions (Should Consider)\n- Consider adding more unit tests for edge cases.\n\n### Overall Assessment\nGreat work! The code is clean and well-documented."
+
+# Request changes on PR #42
+gh pr review 42 --repo manusa/ai --request-changes --body "## Pull Request Review: #42\n\n### Review Verdict\nREQUEST_CHANGES\n\n### Findings\n\n#### Critical Issues (Must Fix)\n- Missing input validation in the new handler function.\n- Potential null pointer exception on line 45."
+```
+
 Here is the pull request number or URL to review:
 $ARGUMENTS
