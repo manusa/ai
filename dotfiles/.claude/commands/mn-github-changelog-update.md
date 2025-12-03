@@ -62,9 +62,17 @@ Categorize changes based on conventional commit prefixes in PR titles or commit 
 | `deprecate`, `deprecated` | **Deprecated** | Deprecated features |
 | `security` | **Security** | Security fixes |
 
-#### 4. Follow Keep a Changelog Format
+#### 4. Analyze Existing Changelog Format
 
-Generate entries following the [Keep a Changelog](https://keepachangelog.com/) format.
+**Important**: Before generating entries, check if a CHANGELOG.md (or similar) already exists in the repository. If it does, analyze its format and follow the existing patterns:
+
+- Look at heading styles (e.g., `## [1.0.0]` vs `## 1.0.0` vs `# Version 1.0.0`)
+- Check category naming (e.g., `### Added` vs `### New Features` vs `**Added:**`)
+- Note entry formatting (e.g., bullet style, PR link format, author attribution)
+- Observe date formats (e.g., `YYYY-MM-DD` vs `Month DD, YYYY`)
+- Match the overall structure and tone
+
+**If no changelog exists**, use the [Keep a Changelog](https://keepachangelog.com/) format as the default.
 
 **Standard categories** (in this order per Keep a Changelog spec):
 1. Added - for new features
@@ -128,7 +136,7 @@ Provide your changelog update in the following format:
 
 ### Changelog Entries
 
-<Generated changelog entries in Keep a Changelog format>
+<Generated changelog entries matching the existing format, or Keep a Changelog format if new>
 
 ### Summary
 - Total PRs analyzed: <count>
