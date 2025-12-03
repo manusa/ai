@@ -12,14 +12,21 @@ Your task is to help me generate or update the CHANGELOG.md file based on merged
 
 #### 1. Detect Last Release Tag
 
-First, identify the last release tag using one of these methods:
+First, identify the last release tag. **Recommended approach** - use GitHub CLI to get the latest release (most reliable):
 ```shell
-# Using git describe
-git describe --tags --abbrev=0
-
-# Or using GitHub CLI
+# Recommended: Get the latest GitHub release (returns the most recent release)
 gh release list --limit 1
+
+# Alternative: Get highest semantic version tag
+git tag --sort=-v:refname | head -1
+
+# Note: git describe may return patch tags for older release lines
+# For example, if you have v2.0.0 and later v1.2.3 (patch for v1.x),
+# it might return v1.2.3 instead of v2.0.0
+git describe --tags --abbrev=0
 ```
+
+**Important**: Always verify the detected tag is correct before proceeding, especially in repositories with multiple release branches.
 
 #### 2. Fetch Merged PRs Since Last Release
 
@@ -57,7 +64,19 @@ Categorize changes based on conventional commit prefixes in PR titles or commit 
 
 #### 4. Follow Keep a Changelog Format
 
-Generate entries following the [Keep a Changelog](https://keepachangelog.com/) format:
+Generate entries following the [Keep a Changelog](https://keepachangelog.com/) format.
+
+**Standard categories** (in this order per Keep a Changelog spec):
+1. Added - for new features
+2. Changed - for changes in existing functionality
+3. Deprecated - for soon-to-be removed features
+4. Removed - for now removed features
+5. Fixed - for any bug fixes
+6. Security - for vulnerability fixes
+
+**Extended categories** (optional, add after standard categories if needed):
+- Breaking Changes - for backwards-incompatible changes (helps highlight MAJOR version bumps)
+- Documentation - for documentation-only changes
 
 ```markdown
 ## [Unreleased] - YYYY-MM-DD
@@ -139,8 +158,7 @@ git log <LAST_TAG>..HEAD --oneline --no-merges
 # Get detailed commit info
 git log <LAST_TAG>..HEAD --pretty=format:"%h %s (%an)" --no-merges
 
-# View current CHANGELOG.md
-cat CHANGELOG.md
+# View current CHANGELOG.md (use Claude's Read tool instead of cat for better integration)
 ```
 
 For example:

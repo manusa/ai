@@ -11,7 +11,8 @@
       "Bash(gh release view:*)",
       "Bash(git describe:*)",
       "Bash(git grep:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(git tag:*)"
     ],
     "deny": [],
     "ask": []
