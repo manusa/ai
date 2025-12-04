@@ -4,9 +4,10 @@
     "allow": [
       "Bash(gh issue view:*)",
       "Bash(gh label list:*)",
-      "Bash(gh pr view:*)",
+      "Bash(gh pr checks:*)",
       "Bash(gh pr diff:*)",
       "Bash(gh pr list:*)",
+      "Bash(gh pr view:*)",
       "Bash(gh release list:*)",
       "Bash(gh release view:*)",
       "Bash(git describe:*)",
