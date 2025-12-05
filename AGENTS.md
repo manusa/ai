@@ -31,6 +31,7 @@ Files listed in `.stow-local-ignore` (README, LICENSE, scripts, etc.) are exclud
 
 The repository includes custom slash commands for project management tasks:
 
+- `/mn-github-changelog-update` - Generates or updates CHANGELOG.md based on merged PRs since the last release tag. Categorizes changes using conventional commit prefixes, follows Keep a Changelog format, and suggests semantic version bumps.
 - `/mn-github-issue` - Creates well-structured GitHub issues. Accepts a description and generates a complete issue with title, description, steps to reproduce, expected/actual behavior, labels, and acceptance criteria.
 - `/mn-github-pr-review` - Performs thorough pull request reviews as a project maintainer. Accepts a PR number or URL and provides a comprehensive code review covering code quality, security, performance, testing, and documentation.
-- `/mn-github-changelog-update` - Generates or updates CHANGELOG.md based on merged PRs since the last release tag. Categorizes changes using conventional commit prefixes, follows Keep a Changelog format, and suggests semantic version bumps.
+- `/mn-update-dependencies` - Checks for outdated dependencies in package.json and updates them one by one with isolated commits. Uses exact versions and the pattern `chore(deps): bump $dependencyName from $oldVersion to $newVersion`.
