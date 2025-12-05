@@ -11,6 +11,7 @@ Your task is to keep the dependencies up to date to prevent security vulnerabili
 2. Update dependencies one by one, testing between each and creating isolated commits.
 3. Use exact versions (no `~` or `^` prefixes).
 4. Commit pattern: `chore(deps): bump $dependencyName from $oldVersion to $newVersion`
-5. Never add AI attribution in commits.
+5. Always sign off commits using `git commit -s`.
+6. Never add AI attribution in commits.
 
 $ARGUMENTS
