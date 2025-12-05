@@ -84,29 +84,33 @@ BREAKING CHANGE: The /v1/users endpoint has been removed. Use /v2/users instead.
    git log --oneline -20
    ```
 
-2. Then, I'll analyze the staged changes using:
+2. Then, I'll analyze all changes (staged and unstaged) to support IDE workflows where changes aren't pre-staged:
    ```shell
-   # View staged changes
-   git diff --cached
+   # View all changes (staged + unstaged)
+   git diff HEAD
 
-   # View staged file names
-   git diff --cached --name-only
+   # View all changed file names
+   git diff HEAD --name-only
 
-   # View brief stat of changes
-   git diff --cached --stat
+   # View brief stat of all changes
+   git diff HEAD --stat
+
+   # If HEAD doesn't exist (new repo), check working tree
+   git status --porcelain
    ```
 
-3. Based on the project's commit style and the staged changes, I'll suggest a commit message following the conventional commit format.
+3. Based on the project's commit style and the changes, I'll suggest a commit message following the conventional commit format.
 
-4. Once you approve the message, you can commit using:
+4. Once you approve the message, stage all changes and commit with sign-off:
    ```shell
-   git commit -m "<message>"
+   # Stage all changes and commit with sign-off
+   git add -A && git commit --signoff -m "<message>"
 
    # For multi-line messages with body
-   git commit -m "<subject>" -m "<body>"
+   git add -A && git commit --signoff -m "<subject>" -m "<body>"
 
    # Or using heredoc for complex messages
-   git commit -m "$(cat <<'EOF'
+   git add -A && git commit --signoff -m "$(cat <<'EOF'
    <type>(<scope>): <description>
 
    <body>
@@ -115,6 +119,8 @@ BREAKING CHANGE: The /v1/users endpoint has been removed. Use /v2/users instead.
    EOF
    )"
    ```
+
+**Note:** The `--signoff` flag adds a `Signed-off-by` trailer with your name and email from git config.
 
 ### Examples
 
