@@ -1,7 +1,7 @@
 {
-  "alwaysThinkingEnabled": false,
   "permissions": {
     "allow": [
+      "Bash(curl:*)",
       "Bash(gh issue view:*)",
       "Bash(gh label list:*)",
       "Bash(gh pr checks:*)",
@@ -13,7 +13,9 @@
       "Bash(git describe:*)",
       "Bash(git grep:*)",
       "Bash(git log:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
