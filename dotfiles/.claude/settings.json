@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(cat:*)",
       "Bash(curl:*)",
       "Bash(gh issue view:*)",
       "Bash(gh label list:*)",
@@ -14,7 +15,11 @@
       "Bash(git grep:*)",
       "Bash(git log:*)",
       "Bash(git tag:*)",
+      "Bash(npm outdated:*)",
       "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:search.google.com)",
+      "WebFetch(domain:www.google.com)",
       "WebSearch"
     ],
     "deny": [],
