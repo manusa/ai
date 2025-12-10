@@ -3,6 +3,7 @@
     "allow": [
       "Bash(cat:*)",
       "Bash(curl:*)",
+      "Bash(find:*)",
       "Bash(gh issue view:*)",
       "Bash(gh label list:*)",
       "Bash(gh pr checks:*)",
@@ -15,6 +16,7 @@
       "Bash(git grep:*)",
       "Bash(git log:*)",
       "Bash(git tag:*)",
+      "Bash(jq:*)",
       "Bash(npm outdated:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
