@@ -29,6 +29,7 @@
       "Bash(go tool cover:*)",
       "Bash(go vet:*)",
       "Bash(jq:*)",
+      "Bash(ls:*)",
       "Bash(npm install)",
       "Bash(npm outdated:*)",
       "Bash(npm test:*)",
