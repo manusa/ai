@@ -6,6 +6,7 @@
       "Bash(cat:*)",
       "Bash(curl:*)",
       "Bash(echo:*)",
+      "Bash(env)",
       "Bash(find:*)",
       "Bash(gh issue view:*)",
       "Bash(gh label list:*)",
@@ -15,6 +16,7 @@
       "Bash(gh pr view:*)",
       "Bash(gh release list:*)",
       "Bash(gh release view:*)",
+      "Bash(gh run list:*)",
       "Bash(gh search issues:*)",
       "Bash(gh search prs:*)",
       "Bash(git add:*)",
@@ -27,6 +29,7 @@
       "Bash(go doc:*)",
       "Bash(go fmt:*)",
       "Bash(go mod:*)",
+      "Bash(go test:*)",
       "Bash(go run:*)",
       "Bash(git show:*)",
       "Bash(go test:*)",
@@ -66,5 +69,8 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true
   }
 }
