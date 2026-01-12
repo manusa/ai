@@ -60,6 +60,7 @@
       "Bash(tee:*)",
       "WebFetch(domain:bun.sh)",
       "WebFetch(domain:github.com)",
+      "WebFetch(domain:github.io)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "WebFetch(domain:pkg.go.dev)",
       "WebFetch(domain:search.google.com)",
