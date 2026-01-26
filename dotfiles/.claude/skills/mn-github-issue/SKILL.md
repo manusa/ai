@@ -21,17 +21,17 @@ You will create a well-structured GitHub Issue in Markdown format.
 
 #### Repository
 ```
-!`gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null || echo "Unknown repository"`
+!`~/.claude/skills/mn-github-issue/scripts/get-repo-name.sh`
 ```
 
 #### Available Labels
 ```
-!`gh label list --json name,description --jq '.[] | "- \(.name): \(.description)"' 2>/dev/null || echo "No labels found - will suggest common labels"`
+!`~/.claude/skills/mn-github-issue/scripts/get-labels.sh`
 ```
 
 #### Recent Issues (for title/style reference)
 ```
-!`gh issue list --limit 20 --json number,title --jq '.[] | "#\(.number) \(.title)"' 2>/dev/null || echo "No recent issues"`
+!`~/.claude/skills/mn-github-issue/scripts/get-recent-issues.sh`
 ```
 
 ### Guidelines

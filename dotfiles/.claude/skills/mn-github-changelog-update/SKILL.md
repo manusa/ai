@@ -19,32 +19,32 @@ Your task is to help me generate or update the CHANGELOG.md file based on merged
 
 #### Latest GitHub Release
 ```
-!`gh release list --limit 1 2>/dev/null || echo "No releases found"`
+!`~/.claude/skills/mn-github-changelog-update/scripts/get-latest-release.sh`
 ```
 
 #### Last Release Tag
 ```
-!`git tag --sort=-v:refname | head -1 2>/dev/null || echo "No tags found"`
+!`~/.claude/skills/mn-github-changelog-update/scripts/get-last-tag.sh`
 ```
 
 #### Last Tag Date
 ```
-!`git log -1 --format=%aI $(git tag --sort=-v:refname | head -1) 2>/dev/null || echo "No tag date"`
+!`~/.claude/skills/mn-github-changelog-update/scripts/get-last-tag-date.sh`
 ```
 
 #### Merged PRs Since Last Release
 ```
-!`gh pr list --state merged --search "merged:>=$(git log -1 --format=%as $(git tag --sort=-v:refname | head -1) 2>/dev/null)" --json number,title,author,mergedAt,labels --limit 100 2>/dev/null || echo "No PRs or no tag found"`
+!`~/.claude/skills/mn-github-changelog-update/scripts/get-merged-prs.sh`
 ```
 
 #### Commits Since Last Tag
 ```
-!`git log $(git tag --sort=-v:refname | head -1)..HEAD --oneline --no-merges 2>/dev/null || git log --oneline -20 2>/dev/null || echo "No commits"`
+!`~/.claude/skills/mn-github-changelog-update/scripts/get-commits-since-tag.sh`
 ```
 
 #### Existing CHANGELOG Format (first 50 lines)
 ```
-!`head -50 CHANGELOG.md 2>/dev/null || head -50 CHANGELOG 2>/dev/null || head -50 changelog.md 2>/dev/null || echo "No CHANGELOG found - will use Keep a Changelog format"`
+!`~/.claude/skills/mn-github-changelog-update/scripts/get-changelog-format.sh`
 ```
 
 ### Guidelines

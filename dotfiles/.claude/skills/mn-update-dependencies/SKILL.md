@@ -15,22 +15,22 @@ Your task is to keep the dependencies up to date to prevent security vulnerabili
 
 #### Package Manager Detection
 ```
-!`ls package.json go.mod pom.xml build.gradle build.gradle.kts 2>/dev/null || echo "No supported package manager detected"`
+!`~/.claude/skills/mn-update-dependencies/scripts/detect-package-manager.sh`
 ```
 
 #### Outdated Dependencies (npm)
 ```
-!`npm outdated 2>/dev/null || echo ""`
+!`~/.claude/skills/mn-update-dependencies/scripts/get-npm-outdated.sh`
 ```
 
 #### Outdated Dependencies (Go)
 ```
-!`go list -m -u all 2>/dev/null | grep '\[' || echo ""`
+!`~/.claude/skills/mn-update-dependencies/scripts/get-go-outdated.sh`
 ```
 
 #### Outdated Dependencies (Maven)
 ```
-!`mvn versions:display-dependency-updates -q 2>/dev/null | grep -E "^\[INFO\].*->" | head -30 || echo ""`
+!`~/.claude/skills/mn-update-dependencies/scripts/get-maven-outdated.sh`
 ```
 
 ### Process
