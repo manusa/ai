@@ -114,7 +114,7 @@ Provide your review in the following format:
 
 ### Submitting the Review
 
-Once the review is complete, use GitHub CLI to submit:
+Once **I confirm** the review is complete, you can use the GitHub CLI `gh` command to submit the review:
 
 ```shell
 # Submit review with approval
