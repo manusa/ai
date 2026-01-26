@@ -29,17 +29,17 @@ Your task is to help me generate or update the CHANGELOG.md file based on merged
 
 #### Last Tag Date
 ```
-!`TAG=$(git tag --sort=-v:refname | head -1 2>/dev/null); [ -n "$TAG" ] && git log -1 --format=%aI "$TAG" 2>/dev/null || echo "No tag date"`
+!`git log -1 --format=%aI $(git tag --sort=-v:refname | head -1) 2>/dev/null || echo "No tag date"`
 ```
 
 #### Merged PRs Since Last Release
 ```
-!`TAG=$(git tag --sort=-v:refname | head -1 2>/dev/null); [ -n "$TAG" ] && DATE=$(git log -1 --format=%aI "$TAG" 2>/dev/null | cut -d'T' -f1) && gh pr list --state merged --search "merged:>=$DATE" --json number,title,author,mergedAt,labels --limit 100 2>/dev/null || echo "No PRs or no tag found"`
+!`gh pr list --state merged --search "merged:>=$(git log -1 --format=%as $(git tag --sort=-v:refname | head -1) 2>/dev/null)" --json number,title,author,mergedAt,labels --limit 100 2>/dev/null || echo "No PRs or no tag found"`
 ```
 
 #### Commits Since Last Tag
 ```
-!`TAG=$(git tag --sort=-v:refname | head -1 2>/dev/null); [ -n "$TAG" ] && git log "$TAG"..HEAD --oneline --no-merges 2>/dev/null || git log --oneline -20 2>/dev/null || echo "No commits"`
+!`git log $(git tag --sort=-v:refname | head -1)..HEAD --oneline --no-merges 2>/dev/null || git log --oneline -20 2>/dev/null || echo "No commits"`
 ```
 
 #### Existing CHANGELOG Format (first 50 lines)
