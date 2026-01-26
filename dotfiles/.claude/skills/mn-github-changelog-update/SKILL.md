@@ -163,6 +163,27 @@ Provide your changelog update in the following format:
 - Other: <count>
 ```
 
+### Additional GitHub CLI Commands
+
+If the pre-fetched context is incomplete or you need to target a specific version:
+
+```shell
+# Get release info for a specific tag
+gh release view <TAG> --json tagName,publishedAt,body
+
+# List merged PRs since a specific date
+gh pr list --state merged --search "merged:>=<DATE>" --json number,title,author,mergedAt,labels,url
+
+# Get detailed commit info with authors
+git log <LAST_TAG>..HEAD --pretty=format:"%h %s (%an)" --no-merges
+
+# Get commits between two specific tags
+git log <OLD_TAG>..<NEW_TAG> --oneline --no-merges
+
+# View a specific PR for more details
+gh pr view <PR_NUMBER> --json title,body,labels,author
+```
+
 ### Instructions
 
 Once the changelog entries are generated and I confirm they look correct, you can:

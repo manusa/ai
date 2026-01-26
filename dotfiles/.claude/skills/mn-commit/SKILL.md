@@ -116,13 +116,15 @@ Using the pre-fetched context above:
 
 1. **Analyze changes**: Review the git status and diff to understand what's being committed.
 
-2. **Scoped changes check**: If working on specific files during this session, ask the user:
-   - Commit **all changes** in the working tree?
-   - Or only **scoped changes** related to current work?
+2. **Scoped changes check**: If I have been working on specific files during this session (active context), I'll ask the user:
+   - Do you want to commit **all changes** in the working tree?
+   - Or only the **scoped changes** related to our current work?
 
-3. **Suggest commit message**: Based on the project's commit style and changes, suggest a conventional commit message.
+   This prevents accidentally committing unrelated changes that happen to be in the working tree.
 
-4. **Co-Authored-By**: If the commit history shows `Co-Authored-By: Claude`, include this trailer.
+3. **Suggest commit message**: Based on the project's commit style and the changes, I'll suggest a commit message following the conventional commit format.
+
+4. **Co-Authored-By**: If the project's commit history shows usage of `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, I'll include this trailer with my current model information.
 
 5. **Commit**: Once approved, stage and commit with sign-off:
    ```shell
