@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Bash(~/.claude/skills/:*)",
       "Bash(bun add:*)",
       "Bash(bun test:*)",
       "Bash(cat:*)",
