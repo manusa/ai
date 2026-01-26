@@ -1,3 +1,9 @@
+---
+name: mn-update-dependencies
+description: Dependency Update Assistant. Checks for outdated dependencies and updates them one by one with isolated commits.
+disable-model-invocation: true
+---
+
 ## Dependency Update Assistant
 
 ### Overview
