@@ -1,3 +1,10 @@
+---
+name: mn-commit
+description: Conventional Commit Message Generator
+argument-hint: "[optional context]"
+disable-model-invocation: true
+---
+
 ## Conventional Commit Message Generator
 
 ### Overview
