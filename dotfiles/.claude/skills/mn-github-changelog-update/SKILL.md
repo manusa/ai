@@ -15,39 +15,49 @@ One would say that you are a Unicorn, PM, QE, DevOps, Architect, and Developer a
 
 Your task is to help me generate or update the CHANGELOG.md file based on merged pull requests since the last release tag.
 
-### Guidelines:
+### Pre-fetched Context
 
-#### 1. Detect Last Release Tag
-
-First, identify the last release tag. **Recommended approach** - use GitHub CLI to get the latest release (most reliable):
-```shell
-# Recommended: Get the latest GitHub release (returns the most recent release)
-gh release list --limit 1
-
-# Alternative: Get highest semantic version tag
-git tag --sort=-v:refname | head -1
-
-# Note: git describe may return patch tags for older release lines
-# For example, if you have v2.0.0 and later v1.2.3 (patch for v1.x),
-# it might return v1.2.3 instead of v2.0.0
-git describe --tags --abbrev=0
+#### Latest GitHub Release
+```
+!`gh release list --limit 1 2>/dev/null || echo "No releases found"`
 ```
 
-**Important**: Always verify the detected tag is correct before proceeding, especially in repositories with multiple release branches.
-
-#### 2. Fetch Merged PRs Since Last Release
-
-Retrieve all merged pull requests since the last release:
-```shell
-# Get the date of the last release tag
-git log -1 --format=%aI <LAST_TAG>
-
-# List merged PRs since that date
-gh pr list --state merged --search "merged:>=<DATE>" --json number,title,author,mergedAt,labels --limit 100
-
-# Or using git log for commits
-git log <LAST_TAG>..HEAD --oneline --no-merges
+#### Last Release Tag
 ```
+!`git tag --sort=-v:refname | head -1 2>/dev/null || echo "No tags found"`
+```
+
+#### Last Tag Date
+```
+!`TAG=$(git tag --sort=-v:refname | head -1 2>/dev/null); [ -n "$TAG" ] && git log -1 --format=%aI "$TAG" 2>/dev/null || echo "No tag date"`
+```
+
+#### Merged PRs Since Last Release
+```
+!`TAG=$(git tag --sort=-v:refname | head -1 2>/dev/null); [ -n "$TAG" ] && DATE=$(git log -1 --format=%aI "$TAG" 2>/dev/null | cut -d'T' -f1) && gh pr list --state merged --search "merged:>=$DATE" --json number,title,author,mergedAt,labels --limit 100 2>/dev/null || echo "No PRs or no tag found"`
+```
+
+#### Commits Since Last Tag
+```
+!`TAG=$(git tag --sort=-v:refname | head -1 2>/dev/null); [ -n "$TAG" ] && git log "$TAG"..HEAD --oneline --no-merges 2>/dev/null || git log --oneline -20 2>/dev/null || echo "No commits"`
+```
+
+#### Existing CHANGELOG Format (first 50 lines)
+```
+!`head -50 CHANGELOG.md 2>/dev/null || head -50 CHANGELOG 2>/dev/null || head -50 changelog.md 2>/dev/null || echo "No CHANGELOG found - will use Keep a Changelog format"`
+```
+
+### Guidelines
+
+Using the pre-fetched context above, verify the detected tag is correct before proceeding, especially in repositories with multiple release branches.
+
+#### 1. Verify Release Tag
+
+The pre-fetched context shows the latest release and tag. Verify these are correct, especially in repositories with multiple release branches.
+
+#### 2. Review Changes
+
+The pre-fetched context includes merged PRs and commits since the last release. Use this data to categorize changes.
 
 #### 3. Categorize Changes
 
@@ -151,43 +161,6 @@ Provide your changelog update in the following format:
 - Changed: <count>
 - Fixed: <count>
 - Other: <count>
-```
-
-### Using GitHub CLI
-
-Here are the commands you can use to gather information:
-
-```shell
-# Get the last release tag
-git describe --tags --abbrev=0
-
-# Get release info
-gh release view <TAG> --json tagName,publishedAt,body
-
-# List merged PRs since a date
-gh pr list --state merged --search "merged:>=<DATE>" --json number,title,author,mergedAt,labels,url
-
-# Get commits since last tag
-git log <LAST_TAG>..HEAD --oneline --no-merges
-
-# Get detailed commit info
-git log <LAST_TAG>..HEAD --pretty=format:"%h %s (%an)" --no-merges
-
-# View current CHANGELOG.md (use Claude's Read tool instead of cat for better integration)
-```
-
-For example:
-```shell
-# Get last tag
-git describe --tags --abbrev=0
-# Output: v1.2.0
-
-# Get tag date
-git log -1 --format=%aI v1.2.0
-# Output: 2024-01-15T10:30:00+00:00
-
-# List merged PRs since that date
-gh pr list --state merged --search "merged:>=2024-01-15" --json number,title,author,mergedAt,url --limit 100
 ```
 
 ### Instructions
