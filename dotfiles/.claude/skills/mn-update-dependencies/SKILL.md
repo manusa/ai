@@ -15,22 +15,22 @@ Your task is to keep the dependencies up to date to prevent security vulnerabili
 
 #### Package Manager Detection
 ```
-!`[ -f package.json ] && echo "npm/yarn (package.json)"; [ -f go.mod ] && echo "go (go.mod)"; [ -f pom.xml ] && echo "maven (pom.xml)"; [ -f build.gradle ] && echo "gradle (build.gradle)"; [ -f build.gradle.kts ] && echo "gradle (build.gradle.kts)"; [ ! -f package.json ] && [ ! -f go.mod ] && [ ! -f pom.xml ] && [ ! -f build.gradle ] && [ ! -f build.gradle.kts ] && echo "No supported package manager detected"`
+!`ls package.json go.mod pom.xml build.gradle build.gradle.kts 2>/dev/null || echo "No supported package manager detected"`
 ```
 
 #### Outdated Dependencies (npm)
 ```
-!`[ -f package.json ] && npm outdated 2>/dev/null || echo ""`
+!`npm outdated 2>/dev/null || echo ""`
 ```
 
 #### Outdated Dependencies (Go)
 ```
-!`[ -f go.mod ] && go list -m -u all 2>/dev/null | grep '\[' || echo ""`
+!`go list -m -u all 2>/dev/null | grep '\[' || echo ""`
 ```
 
 #### Outdated Dependencies (Maven)
 ```
-!`[ -f pom.xml ] && mvn versions:display-dependency-updates -q 2>/dev/null | grep -E "^\[INFO\].*->" | head -30 || echo ""`
+!`mvn versions:display-dependency-updates -q 2>/dev/null | grep -E "^\[INFO\].*->" | head -30 || echo ""`
 ```
 
 ### Process
