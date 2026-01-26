@@ -15,6 +15,33 @@ One would say that you are a Unicorn, PM, QE, DevOps, Architect, and Developer a
 
 Your task is to help me write well-structured conventional commit messages for the current changes.
 
+### Pre-fetched Context
+
+#### Recent Commits (for style reference)
+```
+!`git log --oneline -10 2>/dev/null || echo "No commits yet"`
+```
+
+#### Co-Authored-By Usage
+```
+!`git log --format="%b" -20 2>/dev/null | grep -i "Co-Authored-By" | head -3 || echo "No Co-Authored-By found"`
+```
+
+#### Git Status
+```
+!`git status --short 2>/dev/null || echo "Not a git repository"`
+```
+
+#### Changes Summary
+```
+!`git diff HEAD --stat 2>/dev/null || git diff --stat 2>/dev/null || echo "No changes"`
+```
+
+#### Full Diff
+```
+!`git diff HEAD 2>/dev/null || git diff 2>/dev/null || echo "No changes to show"`
+```
+
 ### Conventional Commit Format
 
 ```
@@ -85,41 +112,19 @@ BREAKING CHANGE: The /v1/users endpoint has been removed. Use /v2/users instead.
 
 ### Process
 
-1. First, I'll check the project's recent commit history to understand the style:
-   ```shell
-   # View recent commits to understand project conventions
-   git log --oneline -20
+Using the pre-fetched context above:
 
-   # Check if Co-Authored-By with Claude is used in recent commits
-   git log --format="%b" -20 | grep -i "Co-Authored-By.*Claude"
-   ```
+1. **Analyze changes**: Review the git status and diff to understand what's being committed.
 
-2. Then, I'll analyze all changes (staged and unstaged) to support IDE workflows where changes aren't pre-staged:
-   ```shell
-   # View all changes (staged + unstaged)
-   git diff HEAD
+2. **Scoped changes check**: If working on specific files during this session, ask the user:
+   - Commit **all changes** in the working tree?
+   - Or only **scoped changes** related to current work?
 
-   # View all changed file names
-   git diff HEAD --name-only
+3. **Suggest commit message**: Based on the project's commit style and changes, suggest a conventional commit message.
 
-   # View brief stat of all changes
-   git diff HEAD --stat
+4. **Co-Authored-By**: If the commit history shows `Co-Authored-By: Claude`, include this trailer.
 
-   # If HEAD doesn't exist (new repo), check working tree
-   git status --porcelain
-   ```
-
-3. **Scoped changes check**: If I have been working on specific files during this session (active context), I'll ask the user:
-   - Do you want to commit **all changes** in the working tree?
-   - Or only the **scoped changes** related to our current work?
-
-   This prevents accidentally committing unrelated changes that happen to be in the working tree.
-
-4. Based on the project's commit style and the changes, I'll suggest a commit message following the conventional commit format.
-
-5. **Co-Authored-By**: If the project's commit history shows usage of `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, I'll include this trailer with my current model information.
-
-6. Once you approve the message, stage the appropriate changes and commit with sign-off:
+5. **Commit**: Once approved, stage and commit with sign-off:
    ```shell
    # Stage all changes and commit with sign-off (ALWAYS use --signoff)
    git add -A && git commit --signoff -m "<message>"
