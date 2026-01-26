@@ -17,7 +17,24 @@ Your task is to help me manage the GitHub issues for the current project.
 I'm going to provide you with a short description of an Issue or Feature Request that I want to create on GitHub.
 You will create a well-structured GitHub Issue in Markdown format.
 
-### Guidelines:
+### Pre-fetched Context
+
+#### Repository
+```
+!`gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null || echo "Unknown repository"`
+```
+
+#### Available Labels
+```
+!`gh label list --json name,description --jq '.[] | "- \(.name): \(.description)"' 2>/dev/null || echo "No labels found - will suggest common labels"`
+```
+
+#### Recent Issues (for title/style reference)
+```
+!`gh issue list --limit 20 --json number,title --jq '.[] | "#\(.number) \(.title)"' 2>/dev/null || echo "No recent issues"`
+```
+
+### Guidelines
 
 - **Title**: A concise title summarizing the issue, bug, enhancement or feature request.
 - **Description**: A detailed description of the issue or feature request, including:
@@ -28,18 +45,55 @@ You will create a well-structured GitHub Issue in Markdown format.
 - **Expected Behavior**: A description of what the expected behavior should be.
 - **Actual Behavior** (if applicable): A description of what is actually happening.
 - **Additional Information**: Any other relevant information, such as screenshots, logs, or references to related issues or documentation.
-- **Labels**: Suggest appropriate labels for the issue (e.g., bug, enhancement, documentation, question). If you have access to the GitHub repository you can try to retrieve the available values using the gh command: `gh label list --repo manusa/ai`.
+- **Labels**: Use labels from the pre-fetched "Available Labels" section above. If no labels were found, suggest common labels (bug, enhancement, documentation, question).
 - **Acceptance Criteria** (for feature requests): A list of criteria that must be met for the feature to be considered complete.
 - **Tests** (if applicable): Suggestions for tests that should be implemented to verify the issue or feature request.
 
-Once I confirm that the issue is well-structured and complete, you can use the GitHub CLI `gh` command to create the issue in the appropriate GitHub repository.
+Once I confirm that the issue is well-structured and complete, you can use the GitHub CLI `gh` command to create the issue. Use the repository from the pre-fetched context above.
 
-For example:
+### Creating the Issue
+
 ```shell
-gh issue create --repo manusa/ai --title "[SCOPE] Issue Title" --body "Issue Body" --label "bug, enhancement"
-# Example bug report
-gh issue create --repo manusa/ai --title "[DOTFILES] Install script fails with exit code 1" --body "## Description\n\nWhen running the install script for the dotfiles, it fails with exit code 1. This prevents the setup from completing successfully.\n\n## Steps to Reproduce\n\n1. Clone the dotfiles repository.\n2. Run the install script using `./install.sh`.\n\n## Expected Behavior\n\nThe install script should complete without errors and set up the dotfiles correctly.\n\n## Actual Behavior\n\nThe install script exits with code 1 and does not complete the setup.\n\n## Additional Information\n\n- Operating System: Ubuntu 20.04\n- Shell: bash\n- Git version: 2.25.1\n\n## Labels\n\nbug, installation, dotfiles\n\n## Tests\n\n- Add unit tests for the install script to verify each step of the installation process." --label "bug, component/install"
+# Basic issue creation
+gh issue create --title "[SCOPE] Issue Title" --body "Issue Body" --label "bug"
+
+# Using heredoc for multi-line body (recommended)
+gh issue create --title "[SCOPE] Issue Title" --label "bug" --body "$(cat <<'EOF'
+## Description
+
+Detailed description here.
+
+## Steps to Reproduce
+
+1. Step one
+2. Step two
+
+## Expected Behavior
+
+What should happen.
+
+## Actual Behavior
+
+What actually happens.
+
+## Additional Information
+
+- Operating System: Ubuntu 20.04
+- Shell: bash
+- Version: 1.2.3
+
+## Acceptance Criteria
+
+- [ ] Criterion one
+- [ ] Criterion two
+
+## Tests
+
+- Add unit tests for the affected functionality
+- Verify edge cases are covered
+EOF
+)"
 ```
 
-Here is the short description of the Issue or Feature Request:
+### Issue Description
 $ARGUMENTS
