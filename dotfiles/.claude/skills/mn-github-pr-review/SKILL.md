@@ -19,22 +19,22 @@ Your task is to help me review pull requests for the current project.
 
 #### PR Details
 ```
-!`PR="$ARGUMENTS"; [ -n "$PR" ] && gh pr view "$PR" 2>/dev/null || echo "No PR specified or not found"`
+!`gh pr view "$ARGUMENTS" 2>/dev/null || echo "No PR specified or not found"`
 ```
 
 #### Files Changed
 ```
-!`PR="$ARGUMENTS"; [ -n "$PR" ] && gh pr view "$PR" --json files --jq '.files[].path' 2>/dev/null || echo "No files"`
+!`gh pr view "$ARGUMENTS" --json files --jq '.files[].path' 2>/dev/null || echo "No files"`
 ```
 
 #### PR Diff
 ```
-!`PR="$ARGUMENTS"; [ -n "$PR" ] && gh pr diff "$PR" 2>/dev/null || echo "No diff available"`
+!`gh pr diff "$ARGUMENTS" 2>/dev/null || echo "No diff available"`
 ```
 
 #### PR Comments/Reviews
 ```
-!`PR="$ARGUMENTS"; [ -n "$PR" ] && gh pr view "$PR" --json reviews,comments --jq '.reviews[].body, .comments[].body' 2>/dev/null | head -50 || echo "No comments"`
+!`gh pr view "$ARGUMENTS" --json reviews,comments --jq '.reviews[].body, .comments[].body' 2>/dev/null | head -50 || echo "No comments"`
 ```
 
 ### Guidelines
