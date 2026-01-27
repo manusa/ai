@@ -3,6 +3,7 @@ name: mn-github-pr-review
 description: GitHub Pull Request Reviewer. Performs thorough code reviews covering quality, security, performance, testing, and documentation.
 argument-hint: "<PR number or URL>"
 disable-model-invocation: true
+allowed-tools: Bash
 ---
 
 ## GitHub Pull Request Reviewer

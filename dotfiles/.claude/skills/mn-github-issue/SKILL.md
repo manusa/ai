@@ -3,6 +3,7 @@ name: mn-github-issue
 description: GitHub Issue Creator. Creates well-structured GitHub issues with title, description, steps to reproduce, labels, and acceptance criteria.
 argument-hint: "<issue description>"
 disable-model-invocation: true
+allowed-tools: Bash
 ---
 
 ## GitHub Issue Creator

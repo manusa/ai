@@ -3,6 +3,7 @@ name: mn-github-changelog-update
 description: GitHub Changelog Updater. Generates or updates CHANGELOG.md based on merged PRs since the last release tag.
 argument-hint: "[version or context]"
 disable-model-invocation: true
+allowed-tools: Bash
 ---
 
 ## GitHub Changelog Updater
