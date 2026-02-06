@@ -20,6 +20,16 @@
         ]
       }
     ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/agent-sessions-notify.sh working"
+          }
+        ]
+      }
+    ],
     "PermissionRequest": [
       {
         "hooks": [
