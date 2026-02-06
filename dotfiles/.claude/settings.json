@@ -1,5 +1,15 @@
 {
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/scripts/agent-sessions-notify.sh working"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
