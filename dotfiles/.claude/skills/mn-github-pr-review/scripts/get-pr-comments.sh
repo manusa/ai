@@ -1,11 +1,11 @@
 #!/bin/bash
 # Get PR comments and reviews
 # Usage: get-pr-comments.sh <PR_NUMBER_OR_URL>
-# Falls back to "No comments" if PR not found or no comments
+# Falls back to "N/A" for local worktree reviews
 
 PR_ARG="$1"
 if [ -z "$PR_ARG" ]; then
-    echo "No PR specified"
+    echo "N/A - Local worktree review (no PR comments)"
     exit 0
 fi
 

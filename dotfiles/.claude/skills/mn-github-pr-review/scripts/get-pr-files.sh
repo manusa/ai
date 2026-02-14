@@ -1,11 +1,14 @@
 #!/bin/bash
 # Get list of files changed in a PR
 # Usage: get-pr-files.sh <PR_NUMBER_OR_URL>
-# Falls back to "No files" if PR not found
+# Falls back to worktree changed files if no PR specified
 
 PR_ARG="$1"
 if [ -z "$PR_ARG" ]; then
-    echo "No PR specified"
+    # List all changed files in worktree (staged + unstaged + untracked)
+    git diff --name-only HEAD 2>/dev/null
+    git diff --name-only --cached 2>/dev/null
+    git ls-files --others --exclude-standard 2>/dev/null
     exit 0
 fi
 
