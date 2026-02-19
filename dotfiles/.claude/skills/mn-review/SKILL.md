@@ -1,5 +1,5 @@
 ---
-name: mn-github-pr-review
+name: mn-review
 description: Code Reviewer. Reviews PRs or local worktree changes covering quality, security, performance, testing, and documentation.
 argument-hint: "[PR number or URL]"
 disable-model-invocation: true
@@ -22,22 +22,22 @@ Your task is to help me review code changes. This can be either:
 
 #### PR Details
 ```
-!`~/.claude/skills/mn-github-pr-review/scripts/get-pr-details.sh "$ARGUMENTS"`
+!`~/.claude/skills/mn-review/scripts/get-pr-details.sh "$ARGUMENTS"`
 ```
 
 #### Files Changed
 ```
-!`~/.claude/skills/mn-github-pr-review/scripts/get-pr-files.sh "$ARGUMENTS"`
+!`~/.claude/skills/mn-review/scripts/get-pr-files.sh "$ARGUMENTS"`
 ```
 
 #### PR Diff
 ```
-!`~/.claude/skills/mn-github-pr-review/scripts/get-pr-diff.sh "$ARGUMENTS"`
+!`~/.claude/skills/mn-review/scripts/get-pr-diff.sh "$ARGUMENTS"`
 ```
 
 #### PR Comments/Reviews
 ```
-!`~/.claude/skills/mn-github-pr-review/scripts/get-pr-comments.sh "$ARGUMENTS"`
+!`~/.claude/skills/mn-review/scripts/get-pr-comments.sh "$ARGUMENTS"`
 ```
 
 ### Guidelines
