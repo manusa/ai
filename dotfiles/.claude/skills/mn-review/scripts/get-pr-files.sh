@@ -4,6 +4,8 @@
 # Falls back to worktree changed files if no PR specified
 
 PR_ARG="$1"
+echo "[FETCHED: $(date -Iseconds)]"
+echo ""
 if [ -z "$PR_ARG" ]; then
     # List all changed files in worktree (staged + unstaged + untracked)
     git diff --name-only HEAD 2>/dev/null

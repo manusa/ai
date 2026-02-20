@@ -4,6 +4,8 @@
 # Falls back to "N/A" for local worktree reviews
 
 PR_ARG="$1"
+echo "[FETCHED: $(date -Iseconds)]"
+echo ""
 if [ -z "$PR_ARG" ]; then
     echo "N/A - Local worktree review (no PR comments)"
     exit 0

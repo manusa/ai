@@ -20,6 +20,10 @@ Your task is to help me review code changes. This can be either:
 
 ### Pre-fetched Context
 
+> **Staleness warning**: The data below was injected at skill invocation time.
+> Each section includes a `[FETCHED: ...]` timestamp. If asked to re-review,
+> this data is **stale** — re-fetch fresh data before reviewing (see Re-reviews section below).
+
 #### PR Details
 ```
 !`~/.claude/skills/mn-review/scripts/get-pr-details.sh "$ARGUMENTS"`
@@ -40,9 +44,22 @@ Your task is to help me review code changes. This can be either:
 !`~/.claude/skills/mn-review/scripts/get-pr-comments.sh "$ARGUMENTS"`
 ```
 
+### Re-reviews
+
+When asked to review again within the same session (e.g., after the author has pushed fixes):
+
+1. **Ignore all pre-fetched context above** — it was injected at initial invocation and is now stale
+2. **Re-fetch fresh data** by running these commands via Bash (replace `<TARGET>` with the PR number/URL from the initial review):
+   - `~/.claude/skills/mn-review/scripts/get-pr-details.sh <TARGET>`
+   - `~/.claude/skills/mn-review/scripts/get-pr-files.sh <TARGET>`
+   - `~/.claude/skills/mn-review/scripts/get-pr-diff.sh <TARGET>`
+   - `~/.claude/skills/mn-review/scripts/get-pr-comments.sh <TARGET>`
+3. **Use ONLY the freshly fetched data** for the new review
+4. **Retain discussion context** from the conversation — previous feedback, agreed-upon changes, and open questions are still relevant and should inform the re-review
+
 ### Guidelines
 
-Using the pre-fetched context above, perform a thorough code review:
+Using the pre-fetched context above (or freshly fetched data for re-reviews), perform a thorough code review:
 
 #### 1. PR Overview
 - Summarize the purpose and scope of the PR.

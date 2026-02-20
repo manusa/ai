@@ -4,6 +4,8 @@
 # Falls back to worktree changes if no PR specified
 
 PR_ARG="$1"
+echo "[FETCHED: $(date -Iseconds)]"
+echo ""
 if [ -z "$PR_ARG" ]; then
     echo "MODE: Local worktree changes review"
     echo ""

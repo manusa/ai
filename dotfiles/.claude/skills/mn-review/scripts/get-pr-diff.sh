@@ -4,6 +4,8 @@
 # Falls back to worktree diff if no PR specified
 
 PR_ARG="$1"
+echo "[FETCHED: $(date -Iseconds)]"
+echo ""
 if [ -z "$PR_ARG" ]; then
     # Show staged changes
     staged=$(git diff --cached 2>/dev/null)
