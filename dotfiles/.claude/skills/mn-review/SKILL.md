@@ -177,14 +177,6 @@ gh pr review <PR_NUMBER> --request-changes --body "Review body here"
 
 # Submit review as comment
 gh pr review <PR_NUMBER> --comment --body "Review body here"
-
-# Add a comment on a specific line (using GitHub API via gh)
-gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments \
-  --method POST \
-  --field body="Comment text" \
-  --field commit_id="<COMMIT_SHA>" \
-  --field path="<FILE_PATH>" \
-  --field line=<LINE_NUMBER>
 ```
 
 For example:
@@ -226,6 +218,85 @@ REQUEST_CHANGES
 - Potential null pointer exception on line 45.
 EOF
 )"
+```
+
+### Posting Inline Comments on Specific Lines
+
+**CRITICAL**: The `line` parameter in the GitHub API refers to the **line number in the file's final version** (the new file after the PR changes), NOT the line number in the diff output. Getting this wrong places comments on the wrong lines.
+
+#### Procedure to determine the correct line number
+
+1. **Get the head commit SHA**:
+   ```shell
+   gh pr view <PR_NUMBER> --repo <OWNER>/<REPO> --json headRefOid --jq '.headRefOid'
+   ```
+
+2. **Extract the actual file content from the diff** to find the correct line numbers. Strip the diff `+` prefixes and use `cat -n` to get file line numbers:
+   ```shell
+   # For new files (entire file is added):
+   gh pr diff <PR_NUMBER> --repo <OWNER>/<REPO> \
+     | awk '/^\+\+\+ b\/<FILE_PATH>/,/^diff --git/' \
+     | grep '^+' | grep -v '^+++' | sed 's/^+//' \
+     | cat -n | grep '<SEARCH_PATTERN>'
+
+   # For modified files, look at the @@ hunk header to determine file line offsets:
+   # @@ -old_start,old_count +new_start,new_count @@
+   # The new_start tells you what line number the hunk begins at in the new file.
+   # Context lines (no prefix) and added lines (+) increment the new file line counter.
+   # Removed lines (-) do NOT increment the new file line counter.
+   ```
+
+3. **Common pitfalls to avoid**:
+   - Do NOT use the line number from `grep -n` on the raw diff file — that gives you the line within the diff output, not the line within the actual file
+   - Do NOT confuse the diff hunk position with the file line number
+   - For new files (`@@ -0,0 +1,N @@`), the file line number equals the sequential count of `+` lines (stripping the `+` prefix)
+   - For modified files, you must account for the hunk's `+new_start` offset and count context/added lines to find the correct file line
+
+4. **Post the comment** using the verified line number:
+   ```shell
+   gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments \
+     --method POST \
+     --field body="Comment text" \
+     --field commit_id="<COMMIT_SHA>" \
+     --field path="<FILE_PATH>" \
+     --field line=<CORRECT_FILE_LINE_NUMBER> \
+     --field side=RIGHT
+   ```
+
+#### Example: Finding the correct line for a new file
+
+If the diff shows a new file `.github/workflows/ci.yml` and you want to comment on the `required: true` line:
+
+```shell
+# Step 1: Extract file content with line numbers
+gh pr diff 42 --repo owner/repo \
+  | awk '/^\+\+\+ b\/\.github\/workflows\/ci.yml/,/^diff --git/' \
+  | grep '^+' | grep -v '^+++' | sed 's/^+//' \
+  | cat -n | grep 'required: true'
+# Output: "    24	        required: true"
+# → The correct line number is 24
+
+# Step 2: Post the comment on line 24
+gh api repos/owner/repo/pulls/42/comments \
+  --method POST \
+  --field body="This should not be required" \
+  --field commit_id="abc123" \
+  --field path=".github/workflows/ci.yml" \
+  --field line=24 \
+  --field side=RIGHT
+```
+
+#### Example: Finding the correct line for a modified file
+
+If the diff shows a hunk `@@ -87,3 +87,31 @@` in `Makefile`, the new file lines start at 87. Count context lines (` `) and added lines (`+`) from the hunk start to find your target line:
+
+```shell
+# Extract the hunk and number the new-file lines
+gh pr diff 42 --repo owner/repo \
+  | awk '/^\+\+\+ b\/Makefile/,/^diff --git/' \
+  | grep '^[+ ]' | grep -v '^+++' \
+  | awk '{print 86+NR": "$0}' | grep 'pattern'
+# The first number on each line is the actual file line number
 ```
 
 ### Target
