@@ -100,9 +100,12 @@ BREAKING CHANGE: The /v1/users endpoint has been removed. Use /v2/users instead.
    - Use a noun describing the section of the codebase
    - Examples: `api`, `auth`, `cli`, `config`, `docs`, `ui`, `db`
 
-3. **Body** (optional):
+3. **Body** (recommended for non-trivial changes):
+   - Always include for changes touching multiple files or concepts
+   - Summarize the nature of the change (new feature, bug fix, refactor, etc.)
+   - Focus on **why** the change was made, not how (the code shows how)
+   - 1-3 concise sentences
    - Wrap at 72 characters
-   - Explain **what** and **why**, not how (the code shows how)
    - Use blank line to separate from subject
    - Can use bullet points
 
@@ -117,17 +120,19 @@ Using the pre-fetched context above:
 
 1. **Analyze changes**: Review the git status and diff to understand what's being committed.
 
-2. **Scoped changes check**: If I have been working on specific files during this session (active context), I'll ask the user:
+2. **Summarize**: Identify the nature of the change (new feature, enhancement, bug fix, refactoring, etc.) and the motivation behind it. This summary becomes the commit body.
+
+3. **Scoped changes check**: If I have been working on specific files during this session (active context), I'll ask the user:
    - Do you want to commit **all changes** in the working tree?
    - Or only the **scoped changes** related to our current work?
 
    This prevents accidentally committing unrelated changes that happen to be in the working tree.
 
-3. **Suggest commit message**: Based on the project's commit style and the changes, I'll suggest a commit message following the conventional commit format.
+4. **Suggest commit message**: Based on the project's commit style and the changes, I'll suggest a commit message following the conventional commit format.
 
-4. **Co-Authored-By**: If the project's commit history shows usage of `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, I'll include this trailer with my current model information.
+5. **Co-Authored-By**: If the project's commit history shows usage of `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, I'll include this trailer with my current model information.
 
-5. **Commit**: Once approved, stage and commit with sign-off:
+6. **Commit**: Once approved, stage and commit with sign-off:
    ```shell
    # Stage all changes and commit with sign-off (ALWAYS use --signoff)
    git add -A && git commit --signoff -m "<message>"
@@ -158,26 +163,42 @@ Using the pre-fetched context above:
 **Simple feature:**
 ```
 feat(auth): add password reset functionality
+
+Allows users to recover their accounts when they forget credentials,
+reducing support ticket volume.
 ```
 
 **Bug fix with scope:**
 ```
 fix(api): handle null response from payment gateway
+
+The payment gateway returns null on timeout instead of an error
+response, causing an unhandled exception in the checkout flow.
 ```
 
 **Documentation update:**
 ```
 chore(docs): add installation instructions for Windows
+
+The project lacked Windows-specific setup guidance, which was the
+most requested topic in issues.
 ```
 
 **CI configuration change:**
 ```
 chore(ci): add caching to speed up GitHub Actions workflow
+
+CI builds were taking 12+ minutes due to repeated dependency
+downloads. Adding npm cache reduces this to ~4 minutes.
 ```
 
 **Performance improvement:**
 ```
 fix(parser): reduce memory allocation in tokenizer loop
+
+The tokenizer was allocating a new buffer per token, causing GC
+pressure on large inputs. Reusing a shared buffer cuts memory
+usage by ~60%.
 ```
 
 **Refactoring with body:**
