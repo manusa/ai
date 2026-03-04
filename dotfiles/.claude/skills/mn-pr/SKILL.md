@@ -120,6 +120,8 @@ Determine the PR target:
 
 Use the commit subject as the PR title. Generate a PR body summarizing the changes.
 
+**Important:** The PR description should focus only on the changes themselves. Do NOT include Co-Authored-By lines, AI agent references, or any mention of the tool used to create the PR.
+
 ```shell
 # For fork workflow (upstream exists)
 gh pr create --repo <upstream-owner>/<upstream-repo> --head <your-fork-owner>:<branch-name> --base <default-branch> --title "<title>" --body "$(cat <<'EOF'
