@@ -132,19 +132,29 @@ Using the pre-fetched context above:
 
 5. **Co-Authored-By**: If the project's commit history shows usage of `Co-Authored-By: Claude <model> <noreply@anthropic.com>`, I'll include this trailer with my current model information.
 
-6. **Commit**: Once approved, stage and commit with sign-off:
+6. **Commit**: Once approved, stage and commit with sign-off.
+
+   **IMPORTANT: Always use SEPARATE Bash tool calls for staging and committing (never chain with `&&`).** This ensures the user gets a confirmation prompt before the commit is created.
+
+   First, stage the changes:
    ```shell
-   # Stage all changes and commit with sign-off (ALWAYS use --signoff)
-   git add -A && git commit --signoff -m "<message>"
+   # Stage all changes
+   git add -A
 
    # Or stage only specific files for scoped commits
-   git add <file1> <file2> && git commit --signoff -m "<message>"
+   git add <file1> <file2>
+   ```
+
+   Then, in a **separate** Bash tool call, create the commit:
+   ```shell
+   # Simple commit with sign-off
+   git commit --signoff -m "<message>"
 
    # For multi-line messages with body
-   git add -A && git commit --signoff -m "<subject>" -m "<body>"
+   git commit --signoff -m "<subject>" -m "<body>"
 
    # Or using heredoc for complex messages (including Co-Authored-By if applicable)
-   git add -A && git commit --signoff -m "$(cat <<'EOF'
+   git commit --signoff -m "$(cat <<'EOF'
    <type>(<scope>): <description>
 
    <body>
@@ -157,6 +167,7 @@ Using the pre-fetched context above:
 **Important:**
 - The `--signoff` flag is **ALWAYS required** - it adds a `Signed-off-by` trailer with your name and email from git config.
 - Never omit `--signoff` under any circumstances.
+- **Never** chain `git add` and `git commit` in the same command — they must be separate tool calls so the user can review staged changes and confirm the commit.
 
 ### Examples
 
