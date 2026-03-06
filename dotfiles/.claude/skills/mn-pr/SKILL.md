@@ -89,7 +89,7 @@ Follow the **Commit Conventions** from the embedded mn-commit skill above. This 
 
 1. Analyzing the changes (use the pre-fetched context and diff)
 2. Suggesting a conventional commit message
-3. Waiting for user approval of the commit message
+3. **MANDATORY STOP: Present the commit message to the user and ask for explicit confirmation before proceeding. Do NOT run `git commit` until the user approves. The user may want to refine the message.**
 4. Staging changes in one Bash call, then committing in a **separate** Bash call (never chain `git add` and `git commit` with `&&`)
 
 For the full diff needed to craft the commit message, run:
@@ -121,6 +121,8 @@ Determine the PR target:
 Use the commit subject as the PR title. Generate a PR body summarizing the changes.
 
 **Important:** The PR description should focus only on the changes themselves. Do NOT include Co-Authored-By lines, AI agent references, or any mention of the tool used to create the PR.
+
+**MANDATORY STOP: Present the PR title and body to the user and ask for explicit confirmation before proceeding. Do NOT run `gh pr create` until the user approves. The user may want to refine the PR title or description.**
 
 ```shell
 # For fork workflow (upstream exists)
