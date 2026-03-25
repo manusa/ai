@@ -7,6 +7,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GUIDELINES_DIR="$SCRIPT_DIR/../guidelines"
 
 PR_ARG="$1"
+echo "[FETCHED: $(date -Iseconds)]"
+echo ""
 
 # Get the list of changed files
 if [ -z "$PR_ARG" ]; then
@@ -20,13 +22,12 @@ if [ -z "$files" ]; then
     exit 0
 fi
 
-# Collect guideline names (use a string with dedup via grep)
-guidelines=""
+# Collect guideline names (use array for dedup)
+guidelines=()
 
 add_guideline() {
-    if ! echo "$guidelines" | grep -qw "$1"; then
-        guidelines="$guidelines $1"
-    fi
+    for g in "${guidelines[@]}"; do [ "$g" = "$1" ] && return; done
+    guidelines+=("$1")
 }
 
 # Map file extensions/names to guideline files
@@ -67,20 +68,18 @@ while IFS= read -r file; do
     esac
 done <<< "$files"
 
-# Trim leading space
-guidelines=$(echo "$guidelines" | xargs)
-
-if [ -z "$guidelines" ]; then
+if [ ${#guidelines[@]} -eq 0 ]; then
     echo "No language-specific guidelines for the detected file types"
     exit 0
 fi
 
 # Output detected languages
-echo "Detected: $(echo "$guidelines" | tr ' ' ', ')"
+detected=$(IFS=,; echo "${guidelines[*]}")
+echo "Detected: $detected"
 echo ""
 
 # Concatenate relevant guideline files
-for lang in $guidelines; do
+for lang in "${guidelines[@]}"; do
     guideline_file="$GUIDELINES_DIR/$lang.md"
     if [ -f "$guideline_file" ]; then
         cat "$guideline_file"
