@@ -44,6 +44,11 @@ Your task is to help me review code changes. This can be either:
 !`~/.claude/skills/mn-review/scripts/get-pr-comments.sh "$ARGUMENTS"`
 ```
 
+#### Language-Specific Review Guidelines
+```
+!`~/.claude/skills/mn-review/scripts/get-language-guidelines.sh "$ARGUMENTS"`
+```
+
 ### Re-reviews
 
 When asked to review again within the same session (e.g., after the author has pushed fixes):
@@ -54,12 +59,15 @@ When asked to review again within the same session (e.g., after the author has p
    - `~/.claude/skills/mn-review/scripts/get-pr-files.sh <TARGET>`
    - `~/.claude/skills/mn-review/scripts/get-pr-diff.sh <TARGET>`
    - `~/.claude/skills/mn-review/scripts/get-pr-comments.sh <TARGET>`
+   - `~/.claude/skills/mn-review/scripts/get-language-guidelines.sh <TARGET>`
 3. **Use ONLY the freshly fetched data** for the new review
 4. **Retain discussion context** from the conversation — previous feedback, agreed-upon changes, and open questions are still relevant and should inform the re-review
 
 ### Guidelines
 
-Using the pre-fetched context above (or freshly fetched data for re-reviews), perform a thorough code review:
+Using the pre-fetched context above (or freshly fetched data for re-reviews), perform a thorough code review.
+
+**Language-specific guidelines**: If the "Language-Specific Review Guidelines" section above contains guidelines for detected languages/frameworks, apply them as part of your review. These checks are in addition to the general guidelines below. Report language-specific findings in a dedicated "Language & Framework Review" section in the output (see Review Output Format).
 
 #### 1. PR Overview
 - Summarize the purpose and scope of the PR.
@@ -123,6 +131,9 @@ Provide your review in the following format:
 #### Minor Comments (Nice to Have)
 <List of minor style or preference-based suggestions>
 
+### Language & Framework Review
+<Language-specific findings based on detected guidelines. Group by language/framework. Omit this section if no language-specific guidelines were detected>
+
 ### Security Concerns
 <Any security-related findings>
 
@@ -153,6 +164,9 @@ Provide your review in the following format:
 
 #### Minor Comments (Nice to Have)
 <List of minor style or preference-based suggestions>
+
+### Language & Framework Review
+<Language-specific findings based on detected guidelines. Group by language/framework. Omit this section if no language-specific guidelines were detected>
 
 ### Security Concerns
 <Any security-related findings>
