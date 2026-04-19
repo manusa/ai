@@ -10,7 +10,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh awaiting_permission"
+            "command": "automated-tasks agent hook notify"
           }
         ]
       },
@@ -19,7 +19,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh awaiting_permission"
+            "command": "automated-tasks agent hook notify"
           }
         ]
       },
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh idle"
+            "command": "automated-tasks agent hook notify"
           }
         ]
       }
@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh awaiting_permission"
+            "command": "automated-tasks agent hook notify"
           }
         ]
       }
@@ -48,7 +48,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh working"
+            "command": "automated-tasks agent hook notify"
           }
         ]
       }
@@ -58,7 +58,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh working"
+            "command": "automated-tasks agent hook notify"
           }
         ]
       }
@@ -68,7 +68,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh idle"
+            "command": "automated-tasks agent hook stop"
           }
         ]
       }
@@ -78,7 +78,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-session-start.sh"
+            "command": "automated-tasks agent hook session-start"
           }
         ]
       }
@@ -88,7 +88,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh idle"
+            "command": "automated-tasks agent hook notify"
           }
         ]
       }
@@ -98,7 +98,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh idle"
+            "command": "automated-tasks agent hook notify"
           }
         ]
       }
@@ -108,11 +108,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/scripts/agent-sessions-notify.sh working"
+            "command": "automated-tasks agent hook notify"
           }
         ]
       }
     ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "automated-tasks agent hook status-line"
   },
   "permissions": {
     "allow": [
