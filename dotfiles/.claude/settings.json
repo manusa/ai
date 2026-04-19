@@ -1,5 +1,5 @@
 {
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
   "enabledPlugins": {
     "gopls-lsp@claude-plugins-official": true
   },
@@ -114,7 +114,6 @@
       }
     ]
   },
-  "model": "claude-opus-4-6",
   "permissions": {
     "allow": [
       "Bash(~/.claude/skills/:*)",
