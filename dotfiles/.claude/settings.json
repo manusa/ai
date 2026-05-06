@@ -114,10 +114,6 @@
       }
     ]
   },
-  "statusLine": {
-    "type": "command",
-    "command": "automated-tasks agent hook status-line"
-  },
   "permissions": {
     "allow": [
       "Bash(~/.claude/skills/:*)",
@@ -211,5 +207,10 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "remoteControlAtStartup": false,
+  "statusLine": {
+    "type": "command",
+    "command": "automated-tasks agent hook status-line"
   }
 }
