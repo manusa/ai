@@ -117,9 +117,10 @@
   "permissions": {
     "allow": [
       "Bash(~/.claude/skills/:*)",
+      "Bash(~/.claude/skills/mn-review/scripts/get-pr-comments.sh:*)",
       "Bash(~/.claude/skills/mn-review/scripts/get-pr-diff.sh:*)",
       "Bash(~/.claude/skills/mn-review/scripts/get-pr-details.sh:*)",
-      "Bash(~/.claude/skills/mn-review/scripts/get-pr-comments.sh:*)",
+      "Bash(~/.claude/skills/mn-review/scripts/get-pr-files.sh:*)",
       "Bash(bun add:*)",
       "Bash(bun install:*)",
       "Bash(bun run lint)",
