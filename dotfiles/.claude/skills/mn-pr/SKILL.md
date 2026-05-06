@@ -19,12 +19,10 @@ Your task is to help me create a pull request for the current changes following 
 
 This skill may be invoked autonomously by another agent at the end of a task. To keep that safe, the following gates MUST be honored on every run, regardless of caller:
 
-- **Branch creation** (Step 3): if a new branch is being created, present the suggested name and wait for explicit user confirmation.
-- **Commit** (Step 4): present the proposed commit message and wait for explicit user confirmation before running `git commit`.
-- **Push** (Step 5): present the push target (remote + branch) and wait for explicit user confirmation before running `git push`.
-- **PR creation** (Step 6): present the PR title, body, base branch, and target repo and wait for explicit user confirmation before running `gh pr create`.
+- **Branch creation** (Step 3): if a new branch is being created, present the suggested name and wait for explicit user confirmation. This gate is independent and cannot be bundled with the next one.
+- **Commit + Push + PR creation** (Steps 4–6, consolidated): present the proposed commit message, the push target (remote + branch), and the PR title/body/base/target-repo *together in a single message*, then wait for one explicit user confirmation. On approval, run `git commit`, `git push`, and `gh pr create` back-to-back without further prompts. If any step fails, stop and surface the error — do not silently retry or skip subsequent steps.
 
-Never bypass these gates, never assume prior approval covers a later step, and never chain confirmations ("approve everything"). Each gate is independent.
+Never bypass these gates and never assume the branch-creation approval covers the consolidated gate. The goal is one confirmation per logical decision (branch identity, then ship-it), not one confirmation per shell command.
 
 ### Pre-fetched Context
 
@@ -116,62 +114,82 @@ The user may override the suggestion with a custom branch name.
 git checkout -b <branch-name>
 ```
 
-#### Step 4: Stage and commit
+#### Steps 4–6: Prepare the full proposal, then ship in one go
 
-Follow the **Commit Conventions** from the embedded mn-commit skill above. This includes:
+These three steps share a **single confirmation gate**. Prepare everything first, present it together, and only after the user approves run all three commands sequentially.
 
-1. Analyzing the changes (use the pre-fetched context and diff)
-2. Suggesting a conventional commit message
-3. **MANDATORY STOP: Present the commit message to the user and ask for explicit confirmation before proceeding. Do NOT run `git commit` until the user approves. The user may want to refine the message.**
-4. Staging changes in one Bash call, then committing in a **separate** Bash call (never chain `git add` and `git commit` with `&&`)
+##### 4a. Gather the diff
 
-For the full diff needed to craft the commit message, run:
+Read the full diff so you can write both the commit message and the PR body from the same source of truth:
+
 ```shell
 git diff HEAD
 ```
 
-If no changes are staged yet, use:
-```shell
-git diff
-```
+If nothing is staged yet, `git diff HEAD` already covers working-tree changes. If you are on Existing Branch Mode with prior unpushed commits, also review them with `git log @{u}..HEAD --patch` so the PR body covers the whole branch, not just the new commit.
 
-#### Step 5: Push the branch
+##### 4b. Draft the commit message
 
-Determine the push target from the pre-fetched **Remotes**:
-- If an `upstream` remote exists, this is a **fork**. Push to `origin` (the fork).
+Follow the **Commit Conventions** from the embedded mn-commit skill above to draft a conventional commit message. Do not run `git commit` yet.
+
+##### 5a. Determine the push target
+
+From the pre-fetched **Remotes**:
+- If an `upstream` remote exists, this is a **fork** — push to `origin` (the fork).
 - If only `origin` exists, push to `origin`.
 
-**MANDATORY STOP: Present the push target (`origin <branch-name>`) and ask for explicit user confirmation before proceeding. Do NOT run `git push` until the user approves.**
+The push command will be `git push -u origin <branch-name>`.
 
-```shell
-git push -u origin <branch-name>
-```
+##### 6a. Determine the PR target and draft title/body
 
-#### Step 6: Create the Pull Request
-
-Determine the PR target:
-- If an `upstream` remote exists (fork workflow): create the PR against the **upstream** repository's default branch using `--repo` flag with the upstream URL.
-- If only `origin` exists: create the PR against `origin`'s default branch.
+- If an `upstream` remote exists (fork workflow): the PR targets the **upstream** repository's default branch, using `--repo` with the upstream URL and `--head <your-fork-owner>:<branch-name>`.
+- If only `origin` exists: the PR targets `origin`'s default branch.
 
 Use the commit subject as the PR title. Generate a PR body summarizing the changes.
 
 **Important:** The PR description should focus only on the changes themselves. Do NOT include Co-Authored-By lines, AI agent references, or any mention of the tool used to create the PR.
 
-**MANDATORY STOP: Present the PR title and body to the user and ask for explicit confirmation before proceeding. Do NOT run `gh pr create` until the user approves. The user may want to refine the PR title or description.**
+##### Single confirmation gate
+
+**MANDATORY STOP.** Present *all* of the following in one message and ask for one confirmation:
+
+1. The proposed commit message (full subject + body)
+2. The push target: `origin <branch-name>`
+3. The PR target repo + base branch
+4. The proposed PR title
+5. The proposed PR body
+
+Tell the user they can refine any piece before approving. Wait for an explicit "yes" / "approve" / "ship it" — do not infer approval from silence or from the original task prompt.
+
+##### Execute (only after approval)
+
+Run the following in order. Use **separate** Bash calls (never chain `git add` and `git commit` with `&&`). If any step fails, stop and report — do not continue to the next step.
 
 ```shell
-# For fork workflow (upstream exists)
+# 1. Stage
+git add <paths>     # or `git add -A` if appropriate for the change set
+
+# 2. Commit
+git commit -m "<subject>" -m "<body>"
+
+# 3. Push
+git push -u origin <branch-name>
+
+# 4. Create the PR
+# Fork workflow (upstream exists):
 gh pr create --repo <upstream-owner>/<upstream-repo> --head <your-fork-owner>:<branch-name> --base <default-branch> --title "<title>" --body "$(cat <<'EOF'
 <body>
 EOF
 )"
 
-# For origin-only workflow
+# Origin-only workflow:
 gh pr create --base <default-branch> --title "<title>" --body "$(cat <<'EOF'
 <body>
 EOF
 )"
 ```
+
+If the working tree is clean and there are only unpushed commits to ship (Existing Branch Mode), skip the stage + commit calls and start at `git push`.
 
 ### Arguments
 $ARGUMENTS
