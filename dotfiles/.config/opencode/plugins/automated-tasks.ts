@@ -3,8 +3,11 @@
 // Stowed from the ai repo to ~/.config/opencode/plugins/automated-tasks.ts.
 // Mirrors ai-beacon's pkg/plugin/opencode/embed/ai-beacon.ts (post-#1654);
 // resync that file's logic here when it changes meaningfully. Forwards
-// opencode bus events to `automated-tasks hook event` so the binary's
+// opencode bus events to `automated-tasks agent hook event` so the binary's
 // SSH-challenge TokenFunc handles auth — the bridge holds no credentials.
+// The `agent` prefix is intentional drift from upstream: automated-tasks
+// is multi-domain (fitness, github, garmin, ...), so hook commands nest
+// under `agent`. See HOOK_ARGV below for the load-bearing fork point.
 // In wrapper mode AI_BEACON_WRAPPER_BIN takes precedence; standalone runs
 // fall back to PATH lookup on `automated-tasks`.
 
@@ -19,6 +22,14 @@ import { hostname as osHostname } from "node:os"
 // `automated-tasks agent session` — that's the path the dashboard reaches
 // when the user runs `opencode` through the dotfiles wrapper function.
 const INSTALL_BIN = "automated-tasks"
+
+// HOOK_ARGV — Butler-specific subcommand path. Upstream `ai-beacon` exposes
+// hook subcommands at the root (`ai-beacon hook event`); `automated-tasks`
+// nests them under the `agent` subdomain (the binary spans many domains —
+// fitness, github, garmin, etc. — so hook commands live under `agent` by
+// design, not by accident). This is the load-bearing place to fork from
+// upstream when resyncing.
+const HOOK_ARGV = ["agent", "hook"]
 
 const wrapperBin = (): string =>
   process.env.AI_BEACON_WRAPPER_BIN || INSTALL_BIN
@@ -66,7 +77,7 @@ const dispatchEvent = async (payload: EventPayload): Promise<void> => {
     return
   }
   try {
-    const proc = Bun.spawn([bin, "hook", "event"], {
+    const proc = Bun.spawn([bin, ...HOOK_ARGV, "event"], {
       stdin: "pipe",
       stdout: "ignore",
       stderr: "inherit",
@@ -75,7 +86,7 @@ const dispatchEvent = async (payload: EventPayload): Promise<void> => {
     // resolves with the killed exit code; the !== 0 branch logs it.
     const timer = setTimeout(() => {
       try { proc.kill() } catch {}
-      console.error(`[ai-beacon] ${bin} hook event exceeded ${SPAWN_TIMEOUT_MS}ms — killed`)
+      console.error(`[ai-beacon] ${bin} ${HOOK_ARGV.join(" ")} event exceeded ${SPAWN_TIMEOUT_MS}ms — killed`)
     }, SPAWN_TIMEOUT_MS)
     try {
       // Awaiting write defends against backpressure when the kernel pipe
@@ -84,7 +95,7 @@ const dispatchEvent = async (payload: EventPayload): Promise<void> => {
       await proc.stdin.end()
       const code = await proc.exited
       if (code !== 0) {
-        console.error(`[ai-beacon] ${bin} hook event exited ${code}`)
+        console.error(`[ai-beacon] ${bin} ${HOOK_ARGV.join(" ")} event exited ${code}`)
       }
     } finally {
       clearTimeout(timer)
