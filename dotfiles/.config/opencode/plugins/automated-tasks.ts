@@ -1,77 +1,27 @@
 // Butler opencode bridge.
 //
 // Stowed from the ai repo to ~/.config/opencode/plugins/automated-tasks.ts.
-// Mirrors ai-beacon's pkg/plugin/opencode/embed/ai-beacon.ts; resync that
-// file's logic here when it changes meaningfully. Reads AGENT_DASHBOARD_URL
-// (and optional AI_BEACON_AUTH_TOKEN) from the shell environment.
+// Mirrors ai-beacon's pkg/plugin/opencode/embed/ai-beacon.ts (post-#1654);
+// resync that file's logic here when it changes meaningfully. Forwards
+// opencode bus events to `automated-tasks hook event` so the binary's
+// SSH-challenge TokenFunc handles auth — the bridge holds no credentials.
+// In wrapper mode AI_BEACON_WRAPPER_BIN takes precedence; standalone runs
+// fall back to PATH lookup on `automated-tasks`.
 
 import type { Plugin } from "@opencode-ai/plugin"
 import { hostname as osHostname } from "node:os"
 
-type State = "idle" | "working" | "awaiting_permission"
+// Butler-baked default. Upstream uses an install-time-templated absolute
+// path; the stow flow doesn't run `automated-tasks install`, so we rely on
+// PATH lookup (`_ensure_automated_tasks` in the dotfiles repo guarantees
+// the binary is on $PATH on every Butler-managed host). Wrapper-mode
+// sessions override via process.env.AI_BEACON_WRAPPER_BIN, set by
+// `automated-tasks agent session` — that's the path the dashboard reaches
+// when the user runs `opencode` through the dotfiles wrapper function.
+const INSTALL_BIN = "automated-tasks"
 
-// BusPayload is the runtime shape opencode publishes on its event bus at
-// v1.14.35: { id, type, properties }. The v1 SDK's Event union types only a
-// subset and aliases permission.asked as "permission.updated" (see audit
-// §C); rather than fight the SDK type union, we pull only what each handled
-// event needs and leave the rest as `unknown`.
-type BusPayload =
-  | SessionStatusEvent
-  | SessionIdleEvent
-  | PermissionAskedEvent
-  | PermissionRepliedEvent
-  | SessionCreatedEvent
-  | SessionDeletedEvent
-  | { type: string; properties?: { sessionID?: string } & Record<string, unknown> }
-
-type StatusType = "busy" | "retry" | "idle"
-type SessionStatusEvent = {
-  type: "session.status"
-  properties: { sessionID: string; status: { type: StatusType } }
-}
-type SessionIdleEvent = {
-  type: "session.idle"
-  properties: { sessionID: string }
-}
-type PermissionAskedEvent = {
-  type: "permission.asked"
-  properties: { sessionID: string }
-}
-type PermissionRepliedEvent = {
-  type: "permission.replied"
-  properties: { sessionID: string }
-}
-type SessionCreatedEvent = {
-  type: "session.created"
-  properties: { sessionID: string }
-}
-type SessionDeletedEvent = {
-  type: "session.deleted"
-  properties: { sessionID: string }
-}
-
-type HeartbeatPayload = {
-  session_id: string
-  agent_session_id: string
-  device: string
-  project: string
-  started_at: string
-  state: State
-}
-
-const HEARTBEAT_PATH = "/api/v1/agent/sessions/heartbeat"
-const DELETE_PATH = "/api/v1/agent/sessions"
-// HTTP timeout — short enough that a wedged dashboard doesn't hang the
-// opencode event loop, long enough to absorb LAN latency to a self-hosted
-// dashboard. Tunable via env if a future user needs more headroom.
-const HTTP_TIMEOUT_MS = 5000
-
-const dashboardURL = (): string =>
-  process.env.AGENT_DASHBOARD_URL ??
-  process.env.AI_BEACON_URL ??
-  "http://localhost:8080"
-
-const authToken = (): string => process.env.AI_BEACON_AUTH_TOKEN ?? ""
+const wrapperBin = (): string =>
+  process.env.AI_BEACON_WRAPPER_BIN || INSTALL_BIN
 
 // resolveSessionID — wrapper mode (AGENT_SESSION_ID set) keys the dashboard
 // record on the wrapper UUID so a single record absorbs both wrapper and
@@ -79,96 +29,91 @@ const authToken = (): string => process.env.AI_BEACON_AUTH_TOKEN ?? ""
 const resolveSessionID = (opencodeSessionID: string): string =>
   process.env.AGENT_SESSION_ID || opencodeSessionID
 
-// resolveState maps an opencode bus event to ai-beacon's state taxonomy.
-// Returns null when the event does not flip state — caller skips the
-// heartbeat in that case so it doesn't blank an existing state.
-const resolveState = (event: BusPayload): State | null => {
-  switch (event.type) {
-    case "session.status": {
-      const t = (event as SessionStatusEvent).properties.status.type
-      if (t === "busy" || t === "retry") return "working"
-      if (t === "idle") return "idle"
-      return null
+type BusPayload = {
+  type: string
+  properties?: { sessionID?: string } & Record<string, unknown>
+}
+
+type EventPayload = {
+  agent_type: "opencode"
+  session_id: string
+  agent_session_id: string
+  cwd: string
+  hook_event_name: string
+  device: string
+  project: string
+  started_at: string
+  properties: Record<string, unknown>
+}
+
+// SPAWN_TIMEOUT_MS — belt-and-suspenders cap on how long any single hook
+// event can keep the bridge waiting on the binary. The binary's HTTP client
+// has its own timeout, so a hang here is a defensive guard against any
+// future code path that doesn't honour it (wedged dashboard + slow DNS +
+// blocked syscall, etc.). Without this, await proc.exited would never
+// resolve and opencode's plugin loader would pile up pending hooks.
+const SPAWN_TIMEOUT_MS = 10000
+
+// dispatchEvent spawns the binary with `hook event` and pipes the JSON
+// payload via stdin. Failures (binary missing, non-zero exit, timeout) are
+// logged to stderr but never thrown — opencode's plugin loader silently
+// swallows rejections from the event hook, so we keep a breadcrumb visible
+// without taking the loader down with us.
+const dispatchEvent = async (payload: EventPayload): Promise<void> => {
+  const bin = wrapperBin()
+  if (!bin) {
+    console.error("[ai-beacon] no wrapper binary configured (install-time path empty and AI_BEACON_WRAPPER_BIN unset)")
+    return
+  }
+  try {
+    const proc = Bun.spawn([bin, "hook", "event"], {
+      stdin: "pipe",
+      stdout: "ignore",
+      stderr: "inherit",
+    })
+    // Kill the subprocess if it overruns the deadline. proc.exited then
+    // resolves with the killed exit code; the !== 0 branch logs it.
+    const timer = setTimeout(() => {
+      try { proc.kill() } catch {}
+      console.error(`[ai-beacon] ${bin} hook event exceeded ${SPAWN_TIMEOUT_MS}ms — killed`)
+    }, SPAWN_TIMEOUT_MS)
+    try {
+      // Awaiting write defends against backpressure when the kernel pipe
+      // buffer is full (large `properties` blobs, stressed system).
+      await proc.stdin.write(JSON.stringify(payload))
+      await proc.stdin.end()
+      const code = await proc.exited
+      if (code !== 0) {
+        console.error(`[ai-beacon] ${bin} hook event exited ${code}`)
+      }
+    } finally {
+      clearTimeout(timer)
     }
-    case "session.idle":
-      // Deprecated upstream at v1.14.35 but still emitted; treat as idle.
-      return "idle"
-    case "permission.asked":
-      return "awaiting_permission"
-    case "permission.replied":
-      // Reply landed; opencode will emit the next session.status with the
-      // post-reply state. Return null so we don't override prematurely.
-      return null
-    case "session.created":
-      return "idle"
-    default:
-      return null
-  }
-}
-
-const buildHeaders = (): Record<string, string> => {
-  const headers: Record<string, string> = { "Content-Type": "application/json" }
-  const token = authToken()
-  if (token) headers["Authorization"] = `Bearer ${token}`
-  return headers
-}
-
-const post = async (path: string, body: HeartbeatPayload): Promise<void> => {
-  const url = dashboardURL().replace(/\/$/, "") + path
-  const res = await fetch(url, {
-    method: "POST",
-    headers: buildHeaders(),
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
-  })
-  if (!res.ok) {
-    // Surface non-2xx so a misconfigured dashboard URL or expired auth
-    // token shows up in opencode's stderr instead of vanishing silently.
-    console.error(`[ai-beacon] heartbeat ${url} → HTTP ${res.status} ${res.statusText}`)
-  }
-}
-
-const del = async (path: string, sessionID: string): Promise<void> => {
-  const url = dashboardURL().replace(/\/$/, "") + path + "/" + encodeURIComponent(sessionID)
-  const headers: Record<string, string> = {}
-  const token = authToken()
-  if (token) headers["Authorization"] = `Bearer ${token}`
-  const res = await fetch(url, {
-    method: "DELETE",
-    headers,
-    signal: AbortSignal.timeout(HTTP_TIMEOUT_MS),
-  })
-  if (!res.ok) {
-    console.error(`[ai-beacon] delete ${url} → HTTP ${res.status} ${res.statusText}`)
+  } catch (err) {
+    console.error("[ai-beacon] spawn failed:", err)
   }
 }
 
 const server: Plugin = async ({ project, directory }) => {
   const startedAt = new Date().toISOString()
   const device = osHostname()
+  const cwd = directory ?? project?.worktree ?? ""
   return {
     event: async ({ event }) => {
-      // opencode's plugin loader silently swallows event-hook rejections, so
-      // an uncaught throw here just vanishes — wrap the body so a network
-      // error or unexpected payload shape leaves at least one breadcrumb on
-      // stderr instead of debugging-by-tea-leaves.
       try {
         const payload = event as unknown as BusPayload
         const opencodeSessionID = payload.properties?.sessionID
-        if (payload.type === "session.deleted" && opencodeSessionID) {
-          await del(DELETE_PATH, resolveSessionID(opencodeSessionID))
-          return
-        }
         if (!opencodeSessionID) return
-        const state = resolveState(payload)
-        if (state == null) return
-        await post(HEARTBEAT_PATH, {
+        await dispatchEvent({
+          agent_type: "opencode",
           session_id: resolveSessionID(opencodeSessionID),
           agent_session_id: opencodeSessionID,
+          cwd,
+          hook_event_name: payload.type,
           device,
-          project: directory ?? project?.worktree ?? "",
+          project: cwd,
           started_at: startedAt,
-          state,
+          properties: (payload.properties ?? {}) as Record<string, unknown>,
         })
       } catch (err) {
         try { console.error("[ai-beacon] event handler:", err) } catch {}
