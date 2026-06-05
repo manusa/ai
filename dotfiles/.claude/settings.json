@@ -125,6 +125,7 @@
       "Bash(bun install:*)",
       "Bash(bun run lint)",
       "Bash(bun run prettier:*)",
+      "Bash(bun run screenshots:*)",
       "Bash(bun run test:run:*)",
       "Bash(bun run test:*)",
       "Bash(bun run vitest:*)",
