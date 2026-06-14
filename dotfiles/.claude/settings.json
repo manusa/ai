@@ -219,6 +219,12 @@
       "Bash(tee:*)",
       "Bash(tree:*)",
       "Bash(wc:*)",
+      "mcp__claude-in-chrome__find",
+      "mcp__claude-in-chrome__get_page_text",
+      "mcp__claude-in-chrome__read_console_messages",
+      "mcp__claude-in-chrome__read_network_requests",
+      "mcp__claude-in-chrome__read_page",
+      "mcp__claude-in-chrome__tabs_context_mcp",
       "WebFetch(domain:bun.sh)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:github.io)",
@@ -237,7 +243,7 @@
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": true,
     "filesystem": {
-      "allowWrite": ["/tmp", "/private/tmp"]
+      "allowWrite": ["/tmp", "/private/tmp", "~/Downloads"]
     },
     "network": {
       "allowedDomains": []
