@@ -11,7 +11,10 @@ prompt and the user's read-only allowlist never fires. Minimize that friction:
 
 - **No leading `cd`.** The Bash working directory persists across calls — use the
   persisted cwd or absolute paths. `cd /x && grep …` defeats the `grep` allow
-  rule and prompts.
+  rule and prompts. (Exception: sandbox-*excluded* git commands must be run **bare** —
+  set the cwd in a separate `cd` step, then `git <subcommand>` — because a leading
+  `cd &&`, `git -C`, or `git -c` defeats the exclusion and forces sandboxed
+  execution; see the Sandbox section.)
 - **Prefer the dedicated `Read`, `Grep`, and `Glob` tools** over `cat` / `grep` /
   `find` / `head` / `sed` for inspection — they never need an allowlist entry.
 - **One command per Bash call** for read-only work. Avoid `&&` / `|` chains,
@@ -28,13 +31,55 @@ prompt and the user's read-only allowlist never fires. Minimize that friction:
   sandbox matches the canonicalized symlink), and the same `/tmp` path works on
   Linux.
 
-## Sandbox: networked commands need it disabled
+## Sandbox: GitHub commands are excluded from it (keyring auth); writes are gated
 
-The sandbox permits only a small host allowlist — in practice it tracks your
-allowed `WebFetch` domains — so most hosts, including `api.github.com` and
-anything not on that list, are blocked. `gh`, `git fetch` / `push` / `pull`, and
-`curl` / `wget` to off-list hosts fail inside it, often as a misleading TLS/x509
-or "invalid token" auth error rather than a clean "network blocked". Run those
-with the sandbox disabled (the Bash tool's `dangerouslyDisableSandbox`); they
-still go through the normal permission prompt. Don't chase the auth/TLS error as a
-real credential problem — it's the sandbox.
+`gh`'s token lives in the OS **keyring** (`~/.config/gh/hosts.yml` has no
+`oauth_token`), which the sandbox blocks — so an authenticated `gh` run *inside* the
+sandbox can't read its credential and returns HTTP 401. Rather than disable the
+sandbox per call (always prompts), copy the token to a plaintext file, or maintain a
+GitHub-API entry in the network allowlist, `gh` and the `mn-review` fetch scripts are
+in `sandbox.excludedCommands`, so they run **outside** the sandbox (keyring and
+network both work) and go through the normal permission flow. Excluding a command
+un-sandboxes its whole child-process tree, so `gh` called *inside* an excluded
+script authenticates too. The token never leaves the keyring; nothing is exported or
+written to disk.
+
+Net effect for read-only review:
+- `gh pr view`/`diff`/`list`, `gh issue view`, and the `get-pr-*.sh` scripts run
+  unsandboxed and are auto-approved by their `permissions.allow` rules — **no
+  prompt**. (`autoAllowBashIfSandboxed` does NOT cover excluded commands, so the
+  `allow` rule is what makes them prompt-free; without one they'd prompt.)
+- Everything else still runs sandboxed and auto-approves as before.
+
+Writes stay gated regardless — excluded commands still pass through `ask`/`deny`.
+Every mutating `gh`/`git` command — `gh pr review`/`merge`/`comment`/`create`/
+`close`/`edit`, the `gh issue` writes, `gh api`, `gh release`/`repo`/`secret`/
+`workflow` writes, and `git commit`/`push`/`merge`/`rebase`/`reset`/`revert`/
+`cherry-pick` — is in `permissions.ask`, so it always prompts (content-scoped `ask`
+beats both the sandbox auto-allow and any `allow` rule; precedence is deny → ask →
+allow, specificity ignored). The commit-creating and remote git ops
+(`git commit`/`merge`/`rebase`/`cherry-pick`/`revert`/`push`, plus `git tag`) are in
+BOTH `excludedCommands` and `ask`: a sandboxed `git commit` fails when
+`commit.gpgsign` is on because the **gpg-agent socket is blocked** (same class of
+failure as the gh keyring), so they must run unsandboxed to sign / authenticate —
+while `ask` still prompts for each. Never rely on a bare `Bash`/`Bash(*)` ask —
+those are skipped for sandboxed commands.
+
+**Invocation form matters for excluded git commands.** The sandbox checks
+`excludedCommands` against the command's *leading* token(s) — NOT the per-part
+*permission* decomposition — so anything in front of the excluded command defeats the
+match. `cd <dir> && git commit …` (leads with `cd`) and `git -C <dir> commit …`
+(leads with `git -C`) both run **sandboxed**, where the gpg-agent socket and a
+non-writable `.git` are blocked and signing / index writes fail ("Read-only file
+system / can't connect to gpg-agent"). Only a **bare** excluded command matches: set
+the directory in a *separate* `cd` step (the cwd persists across calls), then run
+bare `git <subcommand>` — never `cd && git …`, `git -C`, `git -c`, or `--git-dir`. If
+that isn't practical (e.g. the repo's `.git` is outside the sandbox-writable paths),
+fall back to `dangerouslyDisableSandbox`, which prompts — fine for an `ask`-gated
+write. (Measured: a commit in this dotfiles repo run as `cd … && git commit` went
+sandboxed and needed the escape hatch.)
+
+Reach for `dangerouslyDisableSandbox` only for a host/op covered by neither the
+allowlist nor `excludedCommands`. If a `gh`/`git` call 401s or hangs inside the
+sandbox, the fix is to add it to `excludedCommands` (keyring) or its host to
+`sandbox.network.allowedDomains` — not to chase a phantom token problem.

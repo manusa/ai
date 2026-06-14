@@ -17,4 +17,4 @@ if [ -z "$PR_ARG" ]; then
     exit 0
 fi
 
-gh pr view "$PR_ARG" 2>/dev/null || echo "PR not found: $PR_ARG"
+gh pr view "$PR_ARG" || echo "ERROR: 'gh pr view $PR_ARG' failed (exit $?). The stderr above distinguishes a missing/wrong PR from a network/sandbox/auth failure — do not treat this as a confirmed 'not found'."

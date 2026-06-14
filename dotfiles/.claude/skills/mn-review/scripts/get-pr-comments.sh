@@ -11,9 +11,10 @@ if [ -z "$PR_ARG" ]; then
     exit 0
 fi
 
-result=$(gh pr view "$PR_ARG" --json reviews,comments --jq '.reviews[].body, .comments[].body' 2>/dev/null | head -50)
-if [ -z "$result" ]; then
+if ! result=$(gh pr view "$PR_ARG" --json reviews,comments --jq '.reviews[].body, .comments[].body'); then
+    echo "ERROR: could not fetch comments/reviews for PR '$PR_ARG' (see stderr above; this is a fetch failure, not a confirmed 'no comments')"
+elif [ -z "$result" ]; then
     echo "No comments"
 else
-    echo "$result"
+    printf '%s\n' "$result" | head -50
 fi

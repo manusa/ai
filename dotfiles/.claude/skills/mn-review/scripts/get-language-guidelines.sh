@@ -14,7 +14,14 @@ echo ""
 if [ -z "$PR_ARG" ]; then
     files=$(git diff --name-only HEAD 2>/dev/null; git diff --name-only --cached 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null)
 else
-    files=$(gh pr view "$PR_ARG" --json files --jq '.files[].path' 2>/dev/null)
+    # Reuse the file list get-pr-files just fetched (cached < 2 min ago) instead of
+    # re-running the identical `gh pr view --json files`; fall back to fetching.
+    cache="/tmp/mn-review-files-$(printf '%s' "$PR_ARG" | tr -c 'A-Za-z0-9' '_').txt"
+    if [ -f "$cache" ] && [ -n "$(find "$cache" -mmin -2 2>/dev/null)" ]; then
+        files=$(cat "$cache")
+    else
+        files=$(gh pr view "$PR_ARG" --json files --jq '.files[].path' 2>/dev/null)
+    fi
 fi
 
 if [ -z "$files" ]; then

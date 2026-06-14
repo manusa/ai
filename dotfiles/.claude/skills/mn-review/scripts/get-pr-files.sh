@@ -14,4 +14,11 @@ if [ -z "$PR_ARG" ]; then
     exit 0
 fi
 
-gh pr view "$PR_ARG" --json files --jq '.files[].path' 2>/dev/null || echo "No files"
+if files=$(gh pr view "$PR_ARG" --json files --jq '.files[].path'); then
+    # Cache for sibling scripts (get-language-guidelines) so the identical
+    # `gh pr view --json files` isn't fetched twice in one review run.
+    printf '%s\n' "$files" > "/tmp/mn-review-files-$(printf '%s' "$PR_ARG" | tr -c 'A-Za-z0-9' '_').txt" 2>/dev/null || true
+    printf '%s\n' "$files"
+else
+    echo "ERROR: could not fetch changed files for PR '$PR_ARG' (exit $? — see stderr above; this is a fetch failure, not a confirmed empty file set)"
+fi

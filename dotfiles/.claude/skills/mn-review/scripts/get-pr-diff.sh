@@ -27,4 +27,4 @@ if [ -z "$PR_ARG" ]; then
     exit 0
 fi
 
-gh pr diff "$PR_ARG" 2>/dev/null || echo "No diff available"
+gh pr diff "$PR_ARG" || echo "ERROR: 'gh pr diff $PR_ARG' failed (exit $? — see stderr above; this is a fetch failure, not a confirmed empty diff)"
