@@ -306,13 +306,29 @@
       "git cherry-pick *",
       "git revert *",
       "git tag *",
+      "go test",
+      "go test *",
+      "make test",
+      "make test *",
+      "make test-go *",
+      "make test-it *",
+      "make test-frontend *",
+      "make check",
+      "make check *",
       "~/.claude/skills/mn-review/scripts/*"
     ],
     "filesystem": {
-      "allowWrite": ["/tmp", "/private/tmp", "~/Downloads"]
+      "allowWrite": [
+        "/tmp",
+        "/private/tmp",
+        "~/Downloads",
+        "~/Library/Caches/go-build",
+        "~/.cache/go-build",
+        "~/go/pkg/mod"
+      ]
     },
     "network": {
-      "allowedDomains": []
+      "allowedDomains": ["proxy.golang.org", "sum.golang.org"]
     }
   },
   "remoteControlAtStartup": false,
