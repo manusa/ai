@@ -150,6 +150,8 @@
       "Bash(gh release list:*)",
       "Bash(gh release view:*)",
       "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run watch:*)",
       "Bash(gh search issues:*)",
       "Bash(gh search prs:*)",
       "Bash(git add:*)",
@@ -233,7 +235,8 @@
       "WebFetch(domain:search.google.com)",
       "WebFetch(domain:www.google.com)",
       "WebFetch(domain:mvnrepository.com)",
-      "WebSearch"
+      "WebSearch",
+      "Write(//private/tmp/**)"
     ],
     "deny": [],
     "ask": [
