@@ -83,3 +83,16 @@ Reach for `dangerouslyDisableSandbox` only for a host/op covered by neither the
 allowlist nor `excludedCommands`. If a `gh`/`git` call 401s or hangs inside the
 sandbox, the fix is to add it to `excludedCommands` (keyring) or its host to
 `sandbox.network.allowedDomains` — not to chase a phantom token problem.
+
+**`podman` and `make lint`/`make build` are excluded too.** `podman` can't run
+sandboxed — it needs its lockfile (`~/.config/containers/...`) and the VM socket
+(`127.0.0.1:<ssh-port>`), both blocked — so it's in `excludedCommands`; the
+read-only subcommands (`podman machine`/`info`/`ps`/`system connection`) and
+`podman run` are allow-listed and auto-approve unsandboxed. `make lint`/`make build`
+are excluded because the golangci-lint installer needs the macOS `$TMPDIR` and a
+download. Do NOT reach for `dangerouslyDisableSandbox` on these — it always prompts
+and bypasses the allow rule; the exclusion + allow rule is what makes them
+prompt-free. As with git, invoke them **bare** (leading `podman …` / `make …`): a
+leading `VAR=…` assignment, `$(…)`, or `cd &&` defeats the `excludedCommands` match
+and forces a sandboxed (failing) run. Inline absolute paths instead of `REPO=…;
+podman run -v "$REPO":…`.

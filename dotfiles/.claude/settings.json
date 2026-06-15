@@ -187,6 +187,7 @@
       "Bash(make check:*)",
       "Bash(make go-run-requirements:*)",
       "Bash(make license-check:*)",
+      "Bash(make lint:*)",
       "Bash(make screenshots:*)",
       "Bash(make test:*)",
       "Bash(make test-frontend *)",
@@ -217,6 +218,7 @@
       "Bash(podman ps:*)",
       "Bash(podman info:*)",
       "Bash(podman system connection:*)",
+      "Bash(podman run:*)",
       "Bash(readlink:*)",
       "Bash(tee:*)",
       "Bash(tree:*)",
@@ -324,6 +326,12 @@
       "make test-frontend *",
       "make check",
       "make check *",
+      "make lint",
+      "make lint *",
+      "make build",
+      "make build *",
+      "podman",
+      "podman *",
       "~/.claude/skills/mn-review/scripts/*"
     ],
     "filesystem": {
