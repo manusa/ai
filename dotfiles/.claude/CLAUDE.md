@@ -30,6 +30,11 @@ prompt and the user's read-only allowlist never fires. Minimize that friction:
   (the config lists `/tmp` and its macOS resolved target `/private/tmp`, since the
   sandbox matches the canonicalized symlink), and the same `/tmp` path works on
   Linux.
+- **Shell is zsh: bash `$PIPESTATUS` expands empty — use `${pipestatus[1]}`.** To
+  verify a command's exit code/output, don't pipe it; redirect to a scratch file
+  (`cmd >/tmp/claude/out 2>&1; rc=$?`), then Read/Grep. Piping an `excludedCommands`
+  target (`make test`, `go test`, `make lint`) to a filter both masks `$?` and,
+  being unsandboxed, needs that filter allow-listed or it prompts.
 
 ## Sandbox: GitHub commands are excluded from it (keyring auth); writes are gated
 
