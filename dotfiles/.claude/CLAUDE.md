@@ -35,6 +35,8 @@ prompt and the user's read-only allowlist never fires. Minimize that friction:
   (`cmd >/tmp/claude/out 2>&1; rc=$?`), then Read/Grep. Piping an `excludedCommands`
   target (`make test`, `go test`, `make lint`) to a filter both masks `$?` and,
   being unsandboxed, needs that filter allow-listed or it prompts.
+- **zsh expands unquoted globs** (`*` `?` `[`) and aborts with `no matches found`;
+  quote them: `grep --include='*.java'`, `gh api '.../F.java?ref=abc'`.
 
 ## Sandbox: GitHub commands are excluded from it (keyring auth); writes are gated
 
