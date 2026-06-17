@@ -139,6 +139,18 @@
       "Bash(comm:*)",
       "Bash(curl:*)",
       "Bash(cut:*)",
+      "Bash(docker info:*)",
+      "Bash(podman info:*)",
+      "Bash(docker machine:*)",
+      "Bash(podman machine:*)",
+      "Bash(docker machine inspect:*)",
+      "Bash(podman machine inspect:*)",
+      "Bash(docker ps:*)",
+      "Bash(podman ps:*)",
+      "Bash(docker run:*)",
+      "Bash(podman run:*)",
+      "Bash(docker system connection:*)",
+      "Bash(podman system connection:*)",
       "Bash(echo:*)",
       "Bash(env)",
       "Bash(find:*)",
@@ -225,12 +237,6 @@
       "Bash(npm why:*)",
       "Bash(npx vitest:*)",
       "Bash(paste:*)",
-      "Bash(podman machine inspect:*)",
-      "Bash(podman machine:*)",
-      "Bash(podman ps:*)",
-      "Bash(podman info:*)",
-      "Bash(podman system connection:*)",
-      "Bash(podman run:*)",
       "Bash(readlink:*)",
       "Bash(rev:*)",
       "Bash(sort:*)",
@@ -254,6 +260,7 @@
       "WebFetch(domain:search.google.com)",
       "WebFetch(domain:www.google.com)",
       "WebFetch(domain:mvnrepository.com)",
+      "WebFetch(domain:quay.io)",
       "WebSearch",
       "Write(//private/tmp/**)"
     ],
@@ -347,7 +354,9 @@
       "make lint *",
       "make build",
       "make build *",
+      "docker",
       "podman",
+      "docker *",
       "podman *",
       "~/.claude/skills/mn-review/scripts/*"
     ],
@@ -358,11 +367,21 @@
         "~/Downloads",
         "~/Library/Caches/go-build",
         "~/.cache/go-build",
-        "~/go/pkg/mod"
+        "~/go/pkg/mod",
+        "~/.m2/repository"
       ]
     },
     "network": {
-      "allowedDomains": ["proxy.golang.org", "sum.golang.org"]
+      "allowedDomains": [
+        "proxy.golang.org",
+        "sum.golang.org",
+        "repo.maven.apache.org",
+        "repo1.maven.org",
+        "maven.repository.redhat.com",
+        "repository.jboss.org",
+        "plugins.gradle.org",
+        "services.gradle.org"
+      ]
     }
   },
   "remoteControlAtStartup": false,

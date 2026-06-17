@@ -37,6 +37,11 @@ prompt and the user's read-only allowlist never fires. Minimize that friction:
   being unsandboxed, needs that filter allow-listed or it prompts.
 - **zsh expands unquoted globs** (`*` `?` `[`) and aborts with `no matches found`;
   quote them: `grep --include='*.java'`, `gh api '.../F.java?ref=abc'`.
+- **The default `java` on PATH varies by machine — pin the JDK with a `javaNN` function.**
+  `java8`/`java17`/`java21`/`java25` exist on every machine; each sets `JAVA_HOME`/`PATH` then
+  execs what's passed, so a **single command** works: `java25 mvn verify`, `java21 make test`
+  (no `&&` needed). It runs sandboxed → auto-approves, no prompt, and is confined to the
+  sandbox's write/network allowlists.
 
 ## Sandbox: GitHub commands are excluded from it (keyring auth); writes are gated
 
