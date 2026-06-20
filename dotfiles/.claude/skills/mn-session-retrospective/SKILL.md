@@ -74,6 +74,14 @@ For each command that prompted, was denied, or failed in the sandbox, find the r
 Cross-check candidates against the *permission config* context so you propose a precise diff,
 never a duplicate.
 
+For how the lists interact — the `deny → ask → allow → sandbox auto-allow` order, and why `ask`
+is the only gate that overrides the sandbox auto-allow — see
+`DOTFILES_REPO/dotfiles/.claude/README.md`. Key point for proposals: a read-only command's
+`allow` rule looks redundant under the sandbox (it auto-allows standalone) but is **load-bearing
+the moment that command is piped/chained onto an `excludedCommand`** — the whole compound runs
+unsandboxed, so the filter needs its own rule (this is exactly why row 1 below, `make test | tail`,
+prompts). So keep/add `allow` for read-only filters; never treat them as decorative.
+
 | Symptom | Root cause | Fix |
 |---|---|---|
 | Safe read-only cmd prompted | not in `permissions.allow` | add `Bash(<cmd>:*)` — e.g. `head` is allowed but `tail`/`sort`/`uniq`/`cut` are not, so `make test \| tail` prompts |
