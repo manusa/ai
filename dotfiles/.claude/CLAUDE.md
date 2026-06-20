@@ -39,9 +39,13 @@ prompt and the user's read-only allowlist never fires. Minimize that friction:
   quote them: `grep --include='*.java'`, `gh api '.../F.java?ref=abc'`.
 - **The default `java` on PATH varies by machine — pin the JDK with a `javaNN` function.**
   `java8`/`java17`/`java21`/`java25` exist on every machine; each sets `JAVA_HOME`/`PATH` then
-  execs what's passed, so a **single command** works: `java25 mvn verify`, `java21 make test`
+  execs what's passed, so a **single command** works: `java25 mvn verify`, `java21 gradle build`
   (no `&&` needed). It runs sandboxed → auto-approves, no prompt, and is confined to the
-  sandbox's write/network allowlists.
+  sandbox's write/network allowlists. **Only prefix commands that genuinely need a JDK**
+  (Maven/Gradle/`java`, or a `make` target that builds/tests Java). Do NOT prefix `go`/`bun`/`npm`
+  or a non-JVM `make` target: `javaNN` becomes the leading token and defeats that command's
+  `sandbox.excludedCommands` match, re-sandboxing it — a sandboxed `go test`/`make test` can't
+  reach the gpg-agent socket, so fixture `git commit`s fail with `exit status 128`. Run those bare.
 
 ## Sandbox: GitHub commands are excluded from it (keyring auth); writes are gated
 
