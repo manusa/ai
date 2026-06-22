@@ -92,9 +92,24 @@ prompts). So keep/add `allow` for read-only filters; never treat them as decorat
 
 ### Lens B — effectiveness & correctness friction
 Anything that cost time or quality beyond permissions:
+
+**Prefer executable fixes over docs.** A "remember to run X first" note (AGENTS.md/CLAUDE.md) is
+fragile — you skip it under load, so the friction recurs. For a forgotten/manual step, make the
+failure impossible or self-healing; doc note only when nothing structural fits. Preference order:
+- **Self-heal the canonical command** — fold the missing prerequisite into the standard build/test
+  target itself so it works on a fresh clone with no manual step; also fixes humans/CI. Beats a
+  "run setup first" note.
+- **PreToolUse hook for off-path steps** — when you reach for a faster command than the canonical
+  one (so the build-system fix can't cover it), add a project hook (`.claude/settings.json`
+  `hooks.PreToolUse` + a small `.claude/hooks/*.sh`) that idempotently ensures the precondition
+  before the tool runs; keep it harmless + `exit 0`.
+- **Commit a fixture** only if the build won't clobber it (generators, `clean` steps, or
+  `.gitignore` can wipe or hide it).
+
 - Wrong/outdated guidance in global `CLAUDE.md` or a project `AGENTS.md` → fix it.
-- Missing project knowledge (build/test cmd, layout, gotcha) → session project's `AGENTS.md`
-  (or suggest `/mn-agents-md` there).
+- Missing project knowledge (build/test cmd, layout, gotcha) → first ask "can this self-heal?"
+  (prereq folded into the canonical command / hook); only if not, the session project's
+  `AGENTS.md` (or `/mn-agents-md`).
 - A skill misbehaved / was unclear / buggy → its `SKILL.md` or scripts. **Including this one:**
   if `mn-session-retrospective` missed a pattern, a script errored, or its guidance is unclear,
   propose fixing it too.
