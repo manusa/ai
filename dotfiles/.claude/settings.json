@@ -61,6 +61,15 @@
             "command": "automated-tasks agent hook notify"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.command // empty' | grep -Eq '(^|[;&|]|[[:space:]])java(8|17|21|25)[[:space:]]+(go|bun|npm|npx)([[:space:]]|$)' && { echo 'Hook: drop the javaNN prefix on go/bun/npm/npx; run it bare to avoid re-sandboxing (PTY/gpg/loopback).' >&2; exit 2; }; exit 0"
+          }
+        ]
       }
     ],
     "SessionEnd": [
