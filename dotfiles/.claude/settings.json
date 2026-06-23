@@ -390,7 +390,8 @@
         "maven.repository.redhat.com",
         "repository.jboss.org",
         "plugins.gradle.org",
-        "services.gradle.org"
+        "services.gradle.org",
+        "raw.githubusercontent.com"
       ]
     }
   },
