@@ -84,7 +84,7 @@ prompts). So keep/add `allow` for read-only filters; never treat them as decorat
 
 | Symptom | Root cause | Fix |
 |---|---|---|
-| Safe read-only cmd prompted | not in `permissions.allow` | add `Bash(<cmd>:*)` — e.g. `head` is allowed but `tail`/`sort`/`uniq`/`cut` are not, so `make test \| tail` prompts |
+| Safe read-only cmd prompted | not in `permissions.allow` | add `Bash(<cmd>:*)` for the missing filter — e.g. if `make test \| tail` prompts, `tail` isn't allow-listed (cross-check the live list first; common filters `head`/`tail`/`sort`/`uniq`/`cut`/`wc` are already present) |
 | Whole pipe/chain prompted | a part not independently approvable, or `$(…)`/backtick/redirect | **behavioral** (split calls, pipe only to allow-listed filters, use Read/Grep/Glob) — *unless* only a safe filter is missing, then allow it |
 | `git`/`podman`/`make` prompted or failed | leading `cd` defeated the `excludedCommands` match | **behavioral**: set cwd separately, run bare |
 | Sandbox blocked a resource | network host / write path / keyring·gpg·socket | `sandbox.network.allowedDomains` / `sandbox.filesystem.allowWrite` / `sandbox.excludedCommands` (+ matching `allow`/`ask`) |
