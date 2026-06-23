@@ -203,6 +203,7 @@
       "Bash(head:*)",
       "Bash(jar:*)",
       "Bash(java:*)",
+      "Bash(javap:*)",
       "Bash(jq:*)",
       "Bash(ln:*)",
       "Bash(ls:*)",
