@@ -1,128 +1,4 @@
 {
-  "effortLevel": "xhigh",
-  "enabledPlugins": {
-    "gopls-lsp@claude-plugins-official": true
-  },
-  "hooks": {
-    "Notification": [
-      {
-        "matcher": "permission_prompt",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook notify"
-          }
-        ]
-      },
-      {
-        "matcher": "elicitation_dialog",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook notify"
-          }
-        ]
-      },
-      {
-        "matcher": "idle_prompt",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook notify"
-          }
-        ]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook notify"
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook notify"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook notify"
-          }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '.tool_input.command // empty' | grep -Eq '(^|[;&|(])[[:space:]]*java(8|17|21|25)[[:space:]]+(go|bun|npm|npx)([[:space:]]|$)' && { echo 'Hook: drop the javaNN prefix on go/bun/npm/npx; run it bare to avoid re-sandboxing (PTY/gpg/loopback).' >&2; exit 2; }; exit 0"
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook stop"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook session-start"
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook notify"
-          }
-        ]
-      }
-    ],
-    "StopFailure": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook notify"
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "automated-tasks agent hook notify"
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(~/.claude/skills/:*)",
@@ -177,6 +53,7 @@
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
       "Bash(gh run watch:*)",
+      "Bash(gh secret list:*)",
       "Bash(gh search issues:*)",
       "Bash(gh search prs:*)",
       "Bash(git add:*)",
@@ -333,10 +210,161 @@
       "Bash(git cherry-pick:*)"
     ]
   },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "permission_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook notify"
+          }
+        ]
+      },
+      {
+        "matcher": "elicitation_dialog",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook notify"
+          }
+        ]
+      },
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook notify"
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook notify"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook notify"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook notify"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.command // empty' | grep -Eq '(^|[;&|(])[[:space:]]*java(8|17|21|25)[[:space:]]+(go|bun|npm|npx)([[:space:]]|$)' && { echo 'Hook: drop the javaNN prefix on go/bun/npm/npx; run it bare to avoid re-sandboxing (PTY/gpg/loopback).' >&2; exit 2; }; exit 0"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook stop"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook session-start"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook notify"
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook notify"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "automated-tasks agent hook notify"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "automated-tasks agent hook status-line"
+  },
+  "enabledPlugins": {
+    "gopls-lsp@claude-plugins-official": true
+  },
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": true,
+    "network": {
+      "allowedDomains": [
+        "proxy.golang.org",
+        "sum.golang.org",
+        "repo.maven.apache.org",
+        "repo1.maven.org",
+        "maven.repository.redhat.com",
+        "repository.jboss.org",
+        "plugins.gradle.org",
+        "services.gradle.org",
+        "raw.githubusercontent.com"
+      ]
+    },
+    "filesystem": {
+      "allowWrite": [
+        "/tmp",
+        "/private/tmp",
+        "~/Downloads",
+        "~/Library/Caches/go-build",
+        "~/.cache/go-build",
+        "~/go/pkg/mod",
+        "~/.m2/repository"
+      ]
+    },
     "excludedCommands": [
       "gh *",
       "git push",
@@ -378,35 +406,9 @@
       "docker *",
       "podman *",
       "~/.claude/skills/mn-review/scripts/*"
-    ],
-    "filesystem": {
-      "allowWrite": [
-        "/tmp",
-        "/private/tmp",
-        "~/Downloads",
-        "~/Library/Caches/go-build",
-        "~/.cache/go-build",
-        "~/go/pkg/mod",
-        "~/.m2/repository"
-      ]
-    },
-    "network": {
-      "allowedDomains": [
-        "proxy.golang.org",
-        "sum.golang.org",
-        "repo.maven.apache.org",
-        "repo1.maven.org",
-        "maven.repository.redhat.com",
-        "repository.jboss.org",
-        "plugins.gradle.org",
-        "services.gradle.org",
-        "raw.githubusercontent.com"
-      ]
-    }
+    ]
   },
+  "effortLevel": "xhigh",
   "remoteControlAtStartup": false,
-  "statusLine": {
-    "type": "command",
-    "command": "automated-tasks agent hook status-line"
-  }
+  "tui": "fullscreen"
 }
