@@ -85,6 +85,7 @@
       "Bash(go tool cover:*)",
       "Bash(go version:*)",
       "Bash(go vet:*)",
+      "Bash(gofmt:*)",
       "Bash(grep:*)",
       "Bash(head:*)",
       "Bash(jar:*)",
@@ -209,6 +210,9 @@
       "Bash(git revert:*)",
       "Bash(git cherry-pick:*)"
     ]
+  },
+  "env": {
+    "GIT_EDITOR": "true"
   },
   "hooks": {
     "Notification": [
@@ -351,7 +355,8 @@
         "repository.jboss.org",
         "plugins.gradle.org",
         "services.gradle.org",
-        "raw.githubusercontent.com"
+        "raw.githubusercontent.com",
+        "github.com"
       ]
     },
     "filesystem": {
