@@ -374,6 +374,8 @@
       "gh *",
       "git push",
       "git push *",
+      "git fetch",
+      "git fetch *",
       "git commit",
       "git commit *",
       "git merge *",
