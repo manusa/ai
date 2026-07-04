@@ -143,6 +143,7 @@
       "mcp__claude-in-chrome__read_network_requests",
       "mcp__claude-in-chrome__read_page",
       "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__ai-beacon__list_sessions",
       "WebFetch(domain:bun.sh)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:github.io)",
