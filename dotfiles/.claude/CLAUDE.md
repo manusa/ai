@@ -100,6 +100,21 @@ allowlist nor `excludedCommands`. If a `gh`/`git` call 401s or hangs inside the
 sandbox, the fix is to add it to `excludedCommands` (keyring) or its host to
 `sandbox.network.allowedDomains` — not to chase a phantom token problem.
 
+**A sandboxed HTTPS tool failing TLS is the proxy, not a bad cert.** The sandbox
+routes network through a local proxy (`HTTPS_PROXY=…@localhost:<port>`) that MITMs any
+host **not** in `sandbox.network.allowedDomains` with its own self-signed CA — so any
+Go/HTTPS CLI (`glab`, `curl`, anything honoring `HTTPS_PROXY`) fails with `tls: failed
+to verify certificate: x509: OSStatus <n>` (Go/macOS) or `curl: (60) self signed
+certificate in certificate chain`. This is **not** the corporate/Red Hat CA, and
+**not** fixable with `SSL_CERT_FILE` (Go ignores it on macOS — Linux-only). Diagnose in
+one step with `env | grep -i proxy`; the allow-listed vs. non-allow-listed contrast is
+the tell (`curl https://github.com` → exit 0 tunnelled, `curl https://<internal-host>`
+→ self-signed-cert error MITM'd). Fix by adding the host to
+`sandbox.network.allowedDomains` (the proxy then tunnels it and the real cert
+verifies). The proxy also supplies DNS for internal hosts, so **allow-list, don't
+unsandbox**: `dangerouslyDisableSandbox` clears the proxy but internal names then fail
+`no such host`. (`gitlab.cee.redhat.com` is already allow-listed for this reason.)
+
 **`podman` and `make lint`/`make build` are excluded too.** `podman` can't run
 sandboxed — it needs its lockfile (`~/.config/containers/...`) and the VM socket
 (`127.0.0.1:<ssh-port>`), both blocked — so it's in `excludedCommands`; the
