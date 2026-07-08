@@ -112,8 +112,10 @@ the tell (`curl https://github.com` → exit 0 tunnelled, `curl https://<interna
 → self-signed-cert error MITM'd). Fix by adding the host to
 `sandbox.network.allowedDomains` (the proxy then tunnels it and the real cert
 verifies). The proxy also supplies DNS for internal hosts, so **allow-list, don't
-unsandbox**: `dangerouslyDisableSandbox` clears the proxy but internal names then fail
-`no such host`. (`gitlab.cee.redhat.com` is already allow-listed for this reason.)
+unsandbox** for hosts the proxy can tunnel: `dangerouslyDisableSandbox` clears the
+proxy but internal names then fail `no such host`. (`gitlab.cee.redhat.com` is
+allow-listed, but `glab`/`curl` to it still fail TLS *sandboxed* and must run
+**unsandboxed** — see the `glab` note below.)
 
 **`podman` and `make lint`/`make build` are excluded too.** `podman` can't run
 sandboxed — it needs its lockfile (`~/.config/containers/...`) and the VM socket
@@ -127,3 +129,18 @@ prompt-free. As with git, invoke them **bare** (leading `podman …` / `make …
 leading `VAR=…` assignment, `$(…)`, or `cd &&` defeats the `excludedCommands` match
 and forces a sandboxed (failing) run. Inline absolute paths instead of `REPO=…;
 podman run -v "$REPO":…`.
+
+**`glab` is excluded too** (Red Hat's `gitlab.cee.redhat.com` and other private
+GitLab). Sandboxed it fails TLS against that host (`self signed certificate in
+certificate chain` / `x509: failed to verify certificate`) **despite the host being
+allow-listed** — it resolves into the `NO_PROXY` internal ranges, so the proxy can't
+tunnel it. In `excludedCommands` it runs unsandboxed and the real Red Hat CA (trusted
+on the machine) verifies. Read-only subcommands (`glab mr view`/`list`/`diff`,
+`glab issue view`/`list`, `glab repo view`, `glab ci view`/`list`, `glab auth status`)
+are allow-listed → prompt-free; mutating ones (`glab mr create`/`merge`,
+`glab issue create`, `glab api`, `glab config set`, …) stay in `ask`. **Don't reach
+for `dangerouslyDisableSandbox` on `glab`** — the exclusion handles it, prompt-free.
+Note `gitlab.cee.redhat.com` is reachable **only over the Red Hat VPN**; when the VPN
+drops (it does, intermittently) `glab`/`git` fail with `could not resolve host` /
+`no such host` / connection timeouts — that is a **VPN outage, not** a sandbox or cert
+problem, so reconnect the VPN rather than touching the sandbox config.
