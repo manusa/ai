@@ -1,4 +1,7 @@
 {
+  "env": {
+    "GIT_EDITOR": "true"
+  },
   "permissions": {
     "allow": [
       "Bash(~/.claude/skills/:*)",
@@ -254,9 +257,7 @@
       "Bash(git cherry-pick:*)"
     ]
   },
-  "env": {
-    "GIT_EDITOR": "true"
-  },
+  "model": "claude-opus-4-6[1m]",
   "hooks": {
     "Notification": [
       {
@@ -462,6 +463,6 @@
     ]
   },
   "effortLevel": "xhigh",
-  "remoteControlAtStartup": false,
-  "tui": "fullscreen"
+  "tui": "fullscreen",
+  "remoteControlAtStartup": false
 }
