@@ -257,7 +257,6 @@
       "Bash(git cherry-pick:*)"
     ]
   },
-  "model": "claude-opus-4-6[1m]",
   "hooks": {
     "Notification": [
       {
