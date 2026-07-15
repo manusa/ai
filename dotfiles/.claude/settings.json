@@ -170,8 +170,7 @@
       "WebFetch(domain:www.google.com)",
       "WebFetch(domain:mvnrepository.com)",
       "WebFetch(domain:quay.io)",
-      "WebSearch",
-      "Write(//private/tmp/**)"
+      "WebSearch"
     ],
     "deny": [],
     "ask": [
