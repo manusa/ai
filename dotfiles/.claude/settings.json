@@ -75,7 +75,8 @@
       "Bash(git rev-parse:*)",
       "Bash(git show:*)",
       "Bash(git status:*)",
-      "Bash(git tag:*)",
+      "Bash(git verify-commit:*)",
+      "Bash(git verify-tag:*)",
       "Bash(glab mr view:*)",
       "Bash(glab mr list:*)",
       "Bash(glab mr diff:*)",
@@ -253,7 +254,8 @@
       "Bash(git rebase:*)",
       "Bash(git reset:*)",
       "Bash(git revert:*)",
-      "Bash(git cherry-pick:*)"
+      "Bash(git cherry-pick:*)",
+      "Bash(git tag:*)"
     ]
   },
   "hooks": {
@@ -431,6 +433,10 @@
       "git cherry-pick *",
       "git revert *",
       "git tag *",
+      "git verify-commit",
+      "git verify-commit *",
+      "git verify-tag",
+      "git verify-tag *",
       "git add",
       "git add *",
       "git checkout *",
