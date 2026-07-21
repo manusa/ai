@@ -144,3 +144,25 @@ Note `gitlab.cee.redhat.com` is reachable **only over the Red Hat VPN**; when th
 drops (it does, intermittently) `glab`/`git` fail with `could not resolve host` /
 `no such host` / connection timeouts — that is a **VPN outage, not** a sandbox or cert
 problem, so reconnect the VPN rather than touching the sandbox config.
+
+## Python / uv
+
+- **`pytest`/`unittest` (every form) are in `excludedCommands`** so they run
+  unsandboxed — *precautionary*, mirroring `go test` (gpg-agent, keyring); no Python
+  suite has actually been measured failing sandboxed yet.
+- **Matching is on leading tokens, so invoke them bare.** `cd &&`, `VAR=…`, `javaNN`,
+  an absolute path, or **any flag between `uv run` and `pytest`** (`uv run --frozen
+  pytest`) silently re-sandboxes the run.
+- **Everything else stays sandboxed** and auto-approves. uv needs `~/.cache/uv` and
+  `~/.local/share/uv` writable, plus `objects.githubusercontent.com` allow-listed —
+  fetching a managed Python redirects there from `github.com`.
+- **`.venv/bin/x` needs no `./`** (it contains a `/`, so no `PATH` lookup); both forms
+  are allow-listed.
+- **Nothing here is *blocked*** — `autoAllowBashIfSandboxed` auto-approves every
+  sandboxed command, so `pip3 install`, `uv sync`, `uv add`, `ruff format`,
+  `ruff check --fix`, `pymarkdown fix` and `uv version --bump` all just run. Absent
+  from `allow` means "don't reach for it unasked", not "gated"; the real gate is
+  commit/PR review.
+- `uv run` syncs implicitly — `--frozen --no-sync` for a read-only `uv run mypy` /
+  `ruff check` / `pymarkdown`, but never with `pytest` (see above).
+- Syntax check with `python3 -m py_compile`, not `python3 -c`.
