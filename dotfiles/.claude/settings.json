@@ -229,6 +229,7 @@
       "WebFetch(domain:www.google.com)",
       "WebFetch(domain:mvnrepository.com)",
       "WebFetch(domain:quay.io)",
+      "WebFetch(domain:access.redhat.com)",
       "WebSearch"
     ],
     "deny": [],
@@ -449,21 +450,22 @@
     "allowUnsandboxedCommands": true,
     "network": {
       "allowedDomains": [
-        "proxy.golang.org",
-        "sum.golang.org",
         "repo.maven.apache.org",
-        "repo1.maven.org",
-        "maven.repository.redhat.com",
-        "repository.jboss.org",
-        "central.sonatype.com",
-        "plugins.gradle.org",
-        "services.gradle.org",
+        "github.com",
         "raw.githubusercontent.com",
         "objects.githubusercontent.com",
-        "github.com",
-        "gitlab.cee.redhat.com",
+        "proxy.golang.org",
+        "sum.golang.org",
+        "plugins.gradle.org",
+        "services.gradle.org",
+        "repository.jboss.org",
+        "repo1.maven.org",
         "pypi.org",
-        "files.pythonhosted.org"
+        "files.pythonhosted.org",
+        "access.redhat.com",
+        "gitlab.cee.redhat.com",
+        "maven.repository.redhat.com",
+        "central.sonatype.com"
       ]
     },
     "filesystem": {
