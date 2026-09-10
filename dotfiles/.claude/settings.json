@@ -442,7 +442,17 @@
     "command": "automated-tasks agent hook status-line"
   },
   "enabledPlugins": {
-    "gopls-lsp@claude-plugins-official": true
+    "gopls-lsp@claude-plugins-official": true,
+    "lightwell-tools@lightwell-marketplace": true
+  },
+  "extraKnownMarketplaces": {
+    "lightwell-marketplace": {
+      "source": {
+        "source": "git",
+        "url": "git@gitlab.cee.redhat.com:mnurisan/mn-lightwell.git"
+      },
+      "autoUpdate": true
+    }
   },
   "sandbox": {
     "enabled": true,
