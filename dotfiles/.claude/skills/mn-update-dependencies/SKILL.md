@@ -52,7 +52,7 @@ Your task is to keep the dependencies up to date to prevent security vulnerabili
 
 5. **Commit pattern**: `chore(deps): bump $dependencyName from $oldVersion to $newVersion`
 
-6. **Always sign off**: Use `git commit -s` or `git commit --signoff`.
+6. **Always sign off**: `git commit --signoff -m 'chore(deps): bump <dependency> from <old> to <new>'` — run it bare, in its own Bash call (no `&&`, pipes, redirects, or `$(…)`), or it runs sandboxed and signing fails. Single-quote the message.
 
 7. **No AI attribution**: Do not add Co-Authored-By for dependency updates.
 

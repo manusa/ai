@@ -147,26 +147,20 @@ Using the pre-fetched context above:
 
    Then, in a **separate** Bash tool call, create the commit:
    ```shell
-   # Simple commit with sign-off
-   git commit --signoff -m "<message>"
+   # Subject-only commit with sign-off
+   git commit --signoff -m '<message>'
 
-   # For multi-line messages with body
-   git commit --signoff -m "<subject>" -m "<body>"
-
-   # Or using heredoc for complex messages (including Co-Authored-By if applicable)
-   git commit --signoff -m "$(cat <<'EOF'
-   <type>(<scope>): <description>
-
-   <body>
-
-   Co-Authored-By: Claude <model-name> <noreply@anthropic.com>
-   EOF
-   )"
+   # Message with a body (and Co-Authored-By if applicable): write it to a file first
+   git commit --signoff -F <commit-msg-file>
    ```
+
+   For a message with a body, first write the complete message (subject, blank line, body, trailers) with the **Write tool** to a scratch file — the session scratchpad directory if the system prompt lists one, otherwise `/tmp/claude/commit-msg.txt` — then pass that file to `-F`.
 
 **Important:**
 - The `--signoff` flag is **ALWAYS required** - it adds a `Signed-off-by` trailer with your name and email from git config.
 - Never omit `--signoff` under any circumstances.
+- **Never build the message in the shell** (`-m "$(cat <<'EOF' …)"`, backticks, heredocs, pipes, redirects). `git commit` is sandbox-excluded so it can reach the gpg-agent to sign, but any of those *anywhere* in the command makes it run sandboxed, and signing fails. Use `-F <file>`.
+- Single-quote inline `-m` text: inside double quotes a backtick (e.g. `` `foo` ``) runs as a command.
 - **Never** chain `git add` and `git commit` in the same command — they must be separate tool calls so the user can review staged changes and confirm the commit.
 
 ### Examples

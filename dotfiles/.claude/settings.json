@@ -575,7 +575,11 @@
       "podman",
       "docker *",
       "podman *",
-      "~/.claude/skills/mn-review/scripts/*"
+      "~/.claude/skills/mn-review/scripts/*",
+      "~/.claude/skills/mn-github-issue/scripts/*",
+      "~/.claude/skills/mn-github-changelog-update/scripts/get-latest-release.sh",
+      "~/.claude/skills/mn-github-changelog-update/scripts/get-merged-prs.sh",
+      "~/.claude/skills/mn-agents-md/scripts/get-project-info.sh"
     ]
   },
   "effortLevel": "xhigh",

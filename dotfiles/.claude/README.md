@@ -17,20 +17,24 @@ golangci-lint) and Bash hygiene lives in `CLAUDE.md`.
 
 Precedence is `deny → ask → allow`; rule specificity is ignored.
 
-> A compound/piped command runs **unsandboxed** if **any** part is an `excludedCommand` — its
-> sandboxable parts then fall to row 5 and need an `allow` rule (e.g. `make test | tail`).
+> An `excludedCommand` runs unsandboxed **only as the entire command**. Anything else in
+> it — `&&`/`;` chaining, a pipe, a redirect, a heredoc, `$(…)` or backticks, anywhere,
+> even after an otherwise-bare `gh …` — runs the **whole compound sandboxed**, so the
+> excluded command loses its keyring / gpg-agent / socket access and fails (e.g.
+> `make test | tail`, `gh pr diff | grep`, `git commit -m "$(cat <<'EOF' …)"`). Run
+> excluded commands bare, one per call, and pass long text via a file (`git commit -F`,
+> `gh … --body-file`). Parsing that must follow a `gh` call belongs in a read-only skill
+> script listed in `excludedCommands` (its child processes inherit the exclusion).
 
 ## What each list actually does here
 
 - **`allow`** — earns its keep for read-only commands. *Decorative* only for a
   sandboxable read-only command run **standalone** (the sandbox auto-allows it whether
   listed or not; verified: `rg`/`fd` run with no rule). **Load-bearing whenever the
-  command runs unsandboxed:** an `excludedCommand` (no sandbox net), a read-only filter
-  **piped/chained onto** an excluded command (the whole compound goes unsandboxed → the
-  filter needs its rule — e.g. `make test | tail`, `go test ./… | grep`,
-  `gh pr diff | grep`), or any command with the sandbox disabled. Because piping
-  read-only filters onto excluded commands is routine, **keep an `allow` rule for every
-  read-only command** — it's the everyday safety net, not just future-proofing.
+  command runs unsandboxed:** an `excludedCommand` (no sandbox net), or any command with
+  the sandbox disabled (`dangerouslyDisableSandbox`). **Keep an `allow` rule for every
+  read-only command** so those unsandboxed runs stay prompt-free. (Piping a filter onto
+  an excluded command no longer counts: the compound runs sandboxed — see above.)
 - **`ask`** — the only real-time human gate. **Overrides the sandbox auto-allow**,
   so it fires even on sandboxable commands (verified: `find` placed in `ask`
   prompted despite being sandboxable). The dial for "technically sandboxable but I
@@ -52,3 +56,13 @@ Precedence is `deny → ask → allow`; rule specificity is ignored.
   next command, no restart.
 - `excludedCommands` run fully unsandboxed (keyring / gpg-agent / VM socket /
   installer needs); their `allow` rule is what keeps them prompt-free. See `CLAUDE.md`.
+- (2026-09-19) Exclusion needs the **whole command** to be the bare excluded command.
+  Measured with `gh pr list`: bare → authenticated; with `&& echo`, `| cat`,
+  `>file 2>&1`, a trailing `<<'EOF'` heredoc, `"$(echo 1)"`, or a backtick argument →
+  sandboxed (`api.github.com` denied). Backslash line continuations and multi-line
+  quoted arguments are fine. This contradicts this file's earlier claim that a compound
+  with an excluded part runs unsandboxed (either Claude Code changed, or that claim was
+  never measured).
+- A skill's `!`-prefetch script runs sandboxed like any Bash command; one that calls
+  `gh` needs its own `excludedCommands` entry, or `gh` fails (measured: the
+  `mn-github-issue` scripts silently printed their "Unknown repository" fallback).

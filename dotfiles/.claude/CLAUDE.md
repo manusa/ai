@@ -32,9 +32,10 @@ prompt and the user's read-only allowlist never fires. Minimize that friction:
   Linux.
 - **Shell is zsh: bash `$PIPESTATUS` expands empty — use `${pipestatus[1]}`.** To
   verify a command's exit code/output, don't pipe it; redirect to a scratch file
-  (`cmd >/tmp/claude/out 2>&1; rc=$?`), then Read/Grep. Piping an `excludedCommands`
-  target (`make test`, `go test`, `make lint`) to a filter both masks `$?` and,
-  being unsandboxed, needs that filter allow-listed or it prompts.
+  (`cmd >/tmp/claude/out 2>&1; rc=$?`), then Read/Grep. **Not for an
+  `excludedCommands` target** (`make test`, `go test`, `make lint`, `gh`, `git commit`):
+  a pipe *or* a redirect makes it run sandboxed (see the Sandbox section) — run it
+  bare and read the Bash tool's own output and exit code.
 - **zsh expands unquoted globs** (`*` `?` `[`) and aborts with `no matches found`;
   quote them: `grep --include='*.java'`, `gh api '.../F.java?ref=abc'`.
 - **The default `java` on PATH varies by machine — pin the JDK with a `javaNN` function.**
@@ -65,6 +66,10 @@ Net effect for read-only review:
   unsandboxed and are auto-approved by their `permissions.allow` rules — **no
   prompt**. (`autoAllowBashIfSandboxed` does NOT cover excluded commands, so the
   `allow` rule is what makes them prompt-free; without one they'd prompt.)
+- **Every skill script that calls `gh` needs its own `excludedCommands` entry** —
+  skill `!`-prefetch runs sandboxed like any Bash call, and `gh` then fails. Keep such
+  scripts **read-only**: `Bash(~/.claude/skills/:*)` allows them without a prompt, so
+  a script that commits or posts would bypass the `ask` gates below.
 - Everything else still runs sandboxed and auto-approves as before.
 
 Writes stay gated regardless — excluded commands still pass through `ask`/`deny`.
@@ -94,6 +99,20 @@ that isn't practical (e.g. the repo's `.git` is outside the sandbox-writable pat
 fall back to `dangerouslyDisableSandbox`, which prompts — fine for an `ask`-gated
 write. (Measured: a commit in this dotfiles repo run as `cd … && git commit` went
 sandboxed and needed the escape hatch.)
+
+**The whole command must be one simple command, not just start with one.** A
+`$(…)`, backticks, a heredoc (even plain stdin `<<'EOF'`), a pipe, a redirection, or a
+trailing `&&`/`;` *anywhere* in it also makes it run sandboxed, even after a bare
+`gh …` / `git commit …` start. Multi-line quoted arguments and backslash line
+continuations are fine. (Measured 2026-09-19: bare `gh pr list` authenticated; the same
+call with `--limit "$(echo 1)"`, a backtick argument, a trailing `<<'EOF'` heredoc,
+`| cat`, `>file 2>&1`, or `&& echo` was sandboxed and denied `api.github.com`.)
+When `gh` output needs parsing, put the parsing in a read-only skill script listed in
+`excludedCommands` (e.g. `mn-review/scripts/get-pr-file-lines.sh`) — not a pipe.
+So never build a commit message or a PR/issue/review body with
+`-m "$(cat <<'EOF' …)"` / `--body "$(…)"`: write it with the Write tool to a scratch
+file and pass `git commit -F <file>` / `gh … --body-file <file>`. Single-quote inline
+`-m` / `--title` text so a backtick in it isn't executed as a substitution.
 
 Reach for `dangerouslyDisableSandbox` only for a host/op covered by neither the
 allowlist nor `excludedCommands`. If a `gh`/`git` call 401s or hangs inside the
@@ -126,9 +145,9 @@ are excluded because the golangci-lint installer needs the macOS `$TMPDIR` and a
 download. Do NOT reach for `dangerouslyDisableSandbox` on these — it always prompts
 and bypasses the allow rule; the exclusion + allow rule is what makes them
 prompt-free. As with git, invoke them **bare** (leading `podman …` / `make …`): a
-leading `VAR=…` assignment, `$(…)`, or `cd &&` defeats the `excludedCommands` match
-and forces a sandboxed (failing) run. Inline absolute paths instead of `REPO=…;
-podman run -v "$REPO":…`.
+leading `VAR=…` assignment or `cd &&`, or a `$(…)` / pipe / redirect anywhere, defeats
+the `excludedCommands` match and forces a sandboxed (failing) run. Inline absolute
+paths instead of `REPO=…; podman run -v "$REPO":…`.
 
 **`glab` is excluded too** (Red Hat's `gitlab.cee.redhat.com` and other private
 GitLab). Sandboxed it fails TLS against that host (`self signed certificate in

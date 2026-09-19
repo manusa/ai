@@ -2,7 +2,7 @@
 # Extract basic project information from available configuration files
 
 echo "=== Repository ==="
-gh repo view --json nameWithOwner,description --jq '"Name: \(.nameWithOwner)\nDescription: \(.description // "No description")"' 2>/dev/null || echo "Not a GitHub repository or gh CLI not available"
+gh repo view --json nameWithOwner,description --jq '"Name: \(.nameWithOwner)\nDescription: \(.description // "No description")"' || echo "ERROR: 'gh repo view' failed (exit $? — see stderr above; not a GitHub repository, or a network/auth failure)"
 
 echo ""
 echo "=== Project Files ==="

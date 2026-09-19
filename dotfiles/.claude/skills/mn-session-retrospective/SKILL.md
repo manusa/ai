@@ -16,10 +16,11 @@ and turn each into a durable fix so the next session runs better.
 **Why this skill exists.** The `manusa/ai` repo (this developer's AI-tooling dotfiles, stowed
 into `~/.claude`) tunes Claude Code so safe, **read-only work runs unsupervised** — via the
 sandbox + `permissions` (allow/ask/deny) + a global `CLAUDE.md`. Prompts still slip through,
-usually because commands were chained/piped (`make test | tail`, `a && b`, `$(…)`) so the
-per-part allowlist never fired, or a safe read-only command isn't allow-listed yet. Catch
-those — but equally in scope: stale docs, missing project knowledge, flaky tooling, skill
-defects, repeated failures.
+usually because commands were chained/piped (`a && b`, `x | y`, `$(…)`) so the per-part
+allowlist never fired, or a safe read-only command isn't allow-listed yet. Worse, an
+`excludedCommand` chained/piped/substituted that way silently runs *sandboxed* and fails
+(`gh` 401, gpg signing). Catch those — but equally in scope: stale docs, missing project
+knowledge, flaky tooling, skill defects, repeated failures.
 
 Run this **while session context is fresh** (before `/clear`). Your memory of the session is
 the primary source; the pre-fetched data augments it and survives compaction.
@@ -76,17 +77,20 @@ never a duplicate.
 
 For how the lists interact — the `deny → ask → allow → sandbox auto-allow` order, and why `ask`
 is the only gate that overrides the sandbox auto-allow — see
-`DOTFILES_REPO/dotfiles/.claude/README.md`. Key point for proposals: a read-only command's
-`allow` rule looks redundant under the sandbox (it auto-allows standalone) but is **load-bearing
-the moment that command is piped/chained onto an `excludedCommand`** — the whole compound runs
-unsandboxed, so the filter needs its own rule (this is exactly why row 1 below, `make test | tail`,
-prompts). So keep/add `allow` for read-only filters; never treat them as decorative.
+`DOTFILES_REPO/dotfiles/.claude/README.md`. Key point for proposals: an `excludedCommand` runs
+unsandboxed **only as the entire command**. Any `&&`/`;`, pipe, redirect, heredoc, `$(…)` or
+backtick *anywhere* in it runs the whole compound **sandboxed** (measured 2026-09-19), so
+`make test | tail`, `gh pr diff | grep`, or `git commit -m "$(cat <<'EOF' …)"` don't prompt —
+they silently lose keyring / gpg-agent / socket access and fail. That is never fixed by an
+`allow` rule for the filter; the fix is behavioral (run it bare), or, for parsing that must
+follow a `gh` call, a read-only skill script listed in `excludedCommands`.
 
 | Symptom | Root cause | Fix |
 |---|---|---|
-| Safe read-only cmd prompted | not in `permissions.allow` | add `Bash(<cmd>:*)` for the missing filter — e.g. if `make test \| tail` prompts, `tail` isn't allow-listed (cross-check the live list first; common filters `head`/`tail`/`sort`/`uniq`/`cut`/`wc` are already present) |
+| Safe read-only cmd prompted | not in `permissions.allow` | add `Bash(<cmd>:*)` (cross-check the live list first; common filters `head`/`tail`/`sort`/`uniq`/`cut`/`wc` are already present) |
 | Whole pipe/chain prompted | a part not independently approvable, or `$(…)`/backtick/redirect | **behavioral** (split calls, pipe only to allow-listed filters, use Read/Grep/Glob) — *unless* only a safe filter is missing, then allow it |
-| `git`/`podman`/`make` prompted or failed | leading `cd` defeated the `excludedCommands` match | **behavioral**: set cwd separately, run bare |
+| `gh`/`git`/`podman`/`make`/`go test` failed with 401/Forbidden, gpg-agent, socket, or `exit status 128` | not the bare, entire command: leading `cd`/`VAR=`/`javaNN`, or a pipe/redirect/`&&`/heredoc/`$(…)` anywhere, re-sandboxed it | **behavioral**: set cwd separately, run it bare in its own call; long text via a file (`git commit -F`, `gh … --body-file`, `gh api --field body=@file`) |
+| A skill's `!`-prefetch or script printed a fallback / empty result | the script calls `gh` but isn't in `excludedCommands`, so it ran sandboxed; `2>/dev/null` hid the error | add the script to `sandbox.excludedCommands` (it's already allowed by `Bash(~/.claude/skills/:*)`); make it print `ERROR: …` on `gh` failure instead of a normal-looking fallback |
 | Sandbox blocked a resource | network host / write path / keyring·gpg·socket | `sandbox.network.allowedDomains` / `sandbox.filesystem.allowWrite` / `sandbox.excludedCommands` (+ matching `allow`/`ask`) |
 | Mutating op gated inconsistently | missing from `ask` | add to `permissions.ask` (never `allow`) |
 
@@ -136,7 +140,7 @@ failure impossible or self-healing; doc note only when nothing structural fits. 
   impact (prompt | sandbox block | wasted N turns | wrong result) · root cause · confidence.
   ("No A/B friction this session." if clean — don't pad.)
 **Proposed changes** — grouped by file, exact before/after, each tagged [global] or [project].
-  e.g. `[global] + Bash(tail:*) → permissions.allow — fixes 'make test | tail'`.
+  e.g. `[global] + "~/.claude/skills/<skill>/scripts/<script>.sh" → sandbox.excludedCommands — its gh call ran sandboxed`.
 **Behavioral reminders** — already-documented things that were missed (no edit).
 **Follow-ups** — /fewer-permission-prompts (allowlist sweep) · /mn-agents-md (project gaps) ·
   /mn-commit or /mn-pr to commit.

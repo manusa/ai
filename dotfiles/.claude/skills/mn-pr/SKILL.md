@@ -163,31 +163,29 @@ Tell the user they can refine any piece before approving. Wait for an explicit "
 
 ##### Execute (only after approval)
 
-Run the following in order. Use **separate** Bash calls (never chain `git add` and `git commit` with `&&`). If any step fails, stop and report — do not continue to the next step.
+First write the approved commit message and PR body with the **Write tool** to two scratch files (the session scratchpad directory if the system prompt lists one, otherwise `/tmp/claude/commit-msg.txt` and `/tmp/claude/pr-body.md`).
+
+Then run the following in order. Use **separate** Bash calls (never chain `git add` and `git commit` with `&&`). If any step fails, stop and report — do not continue to the next step.
 
 ```shell
 # 1. Stage
 git add <paths>     # or `git add -A` if appropriate for the change set
 
-# 2. Commit
-git commit -m "<subject>" -m "<body>"
+# 2. Commit (--signoff is ALWAYS required)
+git commit --signoff -F <commit-msg-file>
 
 # 3. Push
 git push -u origin <branch-name>
 
 # 4. Create the PR
 # Fork workflow (upstream exists):
-gh pr create --repo <upstream-owner>/<upstream-repo> --head <your-fork-owner>:<branch-name> --base <default-branch> --title "<title>" --body "$(cat <<'EOF'
-<body>
-EOF
-)"
+gh pr create --repo <upstream-owner>/<upstream-repo> --head <your-fork-owner>:<branch-name> --base <default-branch> --title '<title>' --body-file <pr-body-file>
 
 # Origin-only workflow:
-gh pr create --base <default-branch> --title "<title>" --body "$(cat <<'EOF'
-<body>
-EOF
-)"
+gh pr create --base <default-branch> --title '<title>' --body-file <pr-body-file>
 ```
+
+**Never build the message or body in the shell** (`-m "$(cat <<'EOF' …)"`, `--body "$(…)"`, backticks, heredocs, pipes, redirects). `git commit`, `git push`, and `gh` are sandbox-excluded so they can sign and authenticate, but any of those *anywhere* in the command makes it run sandboxed, and signing / `gh` auth fail. Single-quote the `--title` so a backtick in it isn't executed.
 
 If the working tree is clean and there are only unpushed commits to ship (Existing Branch Mode), skip the stage + commit calls and start at `git push`.
 

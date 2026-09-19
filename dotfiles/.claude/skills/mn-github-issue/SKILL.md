@@ -54,12 +54,17 @@ Once I confirm that the issue is well-structured and complete, you can use the G
 
 ### Creating the Issue
 
-```shell
-# Basic issue creation
-gh issue create --title "[SCOPE] Issue Title" --body "Issue Body" --label "bug"
+Write the body with the **Write tool** to a scratch file (the session scratchpad directory if the system prompt lists one, otherwise `/tmp/claude/issue-body.md`), then pass it with `--body-file`:
 
-# Using heredoc for multi-line body (recommended)
-gh issue create --title "[SCOPE] Issue Title" --label "bug" --body "$(cat <<'EOF'
+```shell
+gh issue create --title '[SCOPE] Issue Title' --label "bug" --body-file <issue-body-file>
+```
+
+**Never build the body in the shell** (`--body "$(cat <<'EOF' …)"`, backticks, heredocs, pipes, redirects). `gh` is sandbox-excluded so it can read its keyring token, but any of those *anywhere* in the command makes it run sandboxed, and authentication fails. Single-quote the `--title` so a backtick in it isn't executed.
+
+Example body file:
+
+```markdown
 ## Description
 
 Detailed description here.
@@ -92,8 +97,6 @@ What actually happens.
 
 - Add unit tests for the affected functionality
 - Verify edge cases are covered
-EOF
-)"
 ```
 
 ### Issue Description
