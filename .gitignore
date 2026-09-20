@@ -1,3 +1,8 @@
 .idea/
 .DS_Store
 .tmp/
+
+# Claude Code's claude.ai skill sync, written through the ~/.claude/skills stow
+# symlink: downloaded skills (synced/) and the ones it removes (.trash/)
+dotfiles/.claude/skills/synced/
+dotfiles/.claude/skills/.trash/
