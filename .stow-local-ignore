@@ -5,6 +5,9 @@ LICENSE
 \.stow-local-ignore
 install\.sh
 uninstall\.sh
+install\.ps1
+uninstall\.ps1
+\.gitattributes
 \.idea
 \.DS_Store
 

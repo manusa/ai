@@ -45,12 +45,31 @@ sudo dnf install stow
 
 This creates symlinks from your home directory to the files in this repo.
 
+### Windows
+
+Stow does not run on Windows; `install.ps1` does the same linking natively.
+It needs Developer Mode (Settings > System > For developers) so symlinks can be
+created without an elevated shell. From the repo root:
+
+```bat
+powershell -ExecutionPolicy Bypass -File install.ps1
+```
+
+It never replaces an existing file: move a conflicting one aside (step 2 above)
+and re-run.
+
 ## Uninstallation
 
 To remove the symlinks:
 
 ```bash
 ./uninstall.sh
+```
+
+On Windows:
+
+```bat
+powershell -ExecutionPolicy Bypass -File uninstall.ps1
 ```
 
 ## Adding New Config Files
