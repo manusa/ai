@@ -1,0 +1,5 @@
+# Line endings are pinned here rather than left to each clone's core.autocrlf:
+# a checkout can be shared between Windows git (core.autocrlf = true on Git for
+# Windows) and WSL git, and a CRLF checkout breaks the skill scripts in WSL
+# ("/bin/bash^M: bad interpreter"). LF everywhere; PowerShell reads LF fine.
+* text=auto eol=lf

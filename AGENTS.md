@@ -16,7 +16,13 @@ This repository manages configuration files (dotfiles) for AI development tools 
 
 # Uninstall dotfiles (removes symlinks)
 ./uninstall.sh
+
+# Windows (no Stow; needs Developer Mode for unelevated symlinks)
+powershell -ExecutionPolicy Bypass -File install.ps1
+powershell -ExecutionPolicy Bypass -File uninstall.ps1
 ```
+
+`install.ps1`/`uninstall.ps1` reimplement Stow's linking (tree folding, conflicts left alone, `.stow-local-ignore`) and must stay Windows PowerShell 5.1 compatible and ASCII-only.
 
 ## Architecture
 
