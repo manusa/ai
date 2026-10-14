@@ -458,6 +458,7 @@
     "enabled": true,
     "autoAllowBashIfSandboxed": true,
     "allowUnsandboxedCommands": true,
+    "enableWeakerNetworkIsolation": true,
     "network": {
       "allowedDomains": [
         "repo.maven.apache.org",
