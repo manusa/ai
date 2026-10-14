@@ -1,27 +1,20 @@
 #!/bin/bash
-# Detect languages/frameworks from changed files and output relevant review guidelines
-# Usage: get-language-guidelines.sh <PR_NUMBER_OR_URL>
-# Falls back to worktree changed files if no PR specified
+# Detect languages/frameworks from the changed files and output the relevant
+# review guidelines. Works for a GitHub PR, a GitLab MR, or the worktree when no
+# target is given.
+# Usage: get-language-guidelines.sh "<TARGETS>"
 
+. "$(dirname "$0")/lib.sh"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 GUIDELINES_DIR="$SCRIPT_DIR/../guidelines"
 
-PR_ARG="$1"
-echo "[FETCHED: $(date -Iseconds)]"
-echo ""
+mn_begin "$1"
 
-# Get the list of changed files
-if [ -z "$PR_ARG" ]; then
-    files=$(git diff --name-only HEAD 2>/dev/null; git diff --name-only --cached 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null)
+if [ -z "$TARGET" ]; then
+    files=$(mn_local_files)
 else
-    # Reuse the file list get-pr-files just fetched (cached < 2 min ago) instead of
-    # re-running the identical `gh pr view --json files`; fall back to fetching.
-    cache="/tmp/mn-review-files-$(printf '%s' "$PR_ARG" | tr -c 'A-Za-z0-9' '_').txt"
-    if [ -f "$cache" ] && [ -n "$(find "$cache" -mmin -2 2>/dev/null)" ]; then
-        files=$(cat "$cache")
-    else
-        files=$(gh pr view "$PR_ARG" --json files --jq '.files[].path' 2>/dev/null)
-    fi
+    # Reuses the list get-pr-files just cached instead of refetching it.
+    files=$(mn_changed_files "$(mn_forge "$TARGET")" "$(mn_id "$TARGET")" 2>/dev/null)
 fi
 
 if [ -z "$files" ]; then

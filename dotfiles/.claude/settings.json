@@ -284,6 +284,7 @@
       "Bash(glab mr update:*)",
       "Bash(glab mr approve:*)",
       "Bash(glab mr note:*)",
+      "Bash(~/.claude/skills/mn-review/scripts/post-mr-note.sh:*)",
       "Bash(glab mr delete:*)",
       "Bash(glab mr rebase:*)",
       "Bash(glab issue create:*)",

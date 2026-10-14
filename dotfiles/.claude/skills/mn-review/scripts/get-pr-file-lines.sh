@@ -1,29 +1,43 @@
 #!/bin/bash
-# Map a PR diff to line numbers in the file's final (new) version, for inline review comments
-# Usage: get-pr-file-lines.sh <PR_NUMBER_OR_URL> <FILE_PATH> [PATTERN]
-# Prints the PR head SHA (the comment's commit_id), then every added (+) and context ( )
-# line of FILE_PATH in the diff as "<new-file line>\t<marker><content>" — the lines an
-# inline comment with side=RIGHT can target. PATTERN (awk extended regex) filters the
-# listed lines by content. Read-only; runs unsandboxed via sandbox.excludedCommands
-# (keyring auth), which is why the diff is parsed here instead of piped in the caller.
+# Map the target's diff to line numbers in each file's final (new) version, for
+# inline review comments on either forge.
+# Usage: get-pr-file-lines.sh <PR_OR_MR> <FILE_PATH> [PATTERN]
+# Prints the head SHA (on GitHub the comment's commit_id), then every added (+)
+# and context ( ) line of FILE_PATH in the diff as "<new-file line>\t<marker><content>":
+# the lines an inline comment can target (side=RIGHT on GitHub, --line on GitLab).
+# PATTERN (awk extended regex) filters the listed lines by content. Read-only;
+# runs unsandboxed via sandbox.excludedCommands (keyring auth), which is why the
+# diff is parsed here instead of piped in the caller.
 
-PR_ARG="$1"
+. "$(dirname "$0")/lib.sh"
+
+TARGET="$1"
 FILE_PATH="$2"
-if [ -z "$PR_ARG" ] || [ -z "$FILE_PATH" ]; then
-    echo "Usage: get-pr-file-lines.sh <PR_NUMBER_OR_URL> <FILE_PATH> [PATTERN]"
+if [ -z "$TARGET" ] || [ -z "$FILE_PATH" ]; then
+    echo "Usage: get-pr-file-lines.sh <PR_OR_MR> <FILE_PATH> [PATTERN]"
     exit 2
 fi
+ID=$(mn_id "$TARGET")
 
 echo "[FETCHED: $(date -Iseconds)]"
-if ! head_sha=$(gh pr view "$PR_ARG" --json headRefOid --jq '.headRefOid'); then
-    echo "ERROR: 'gh pr view $PR_ARG' failed (exit $? — see stderr above)"
-    exit 1
-fi
-if ! diff=$(gh pr diff "$PR_ARG"); then
-    echo "ERROR: 'gh pr diff $PR_ARG' failed (exit $? — see stderr above; this is a fetch failure, not a confirmed empty diff)"
-    exit 1
-fi
-echo "commit_id: $head_sha"
+case "$(mn_forge "$TARGET")" in
+    github)
+        head_sha=$(gh pr view "$ID" --json headRefOid --jq '.headRefOid') \
+            || { rc=$?; echo "ERROR: 'gh pr view $ID' failed (exit $rc; see stderr above)"; exit 1; }
+        diff=$(gh pr diff "$ID") \
+            || { rc=$?; echo "ERROR: 'gh pr diff $ID' failed (exit $rc; see stderr above; this is a fetch failure, not a confirmed empty diff)"; exit 1; }
+        echo "forge: github"
+        echo "commit_id: $head_sha"
+        ;;
+    gitlab)
+        head_sha=$(glab mr view "$ID" --output json --jq '.sha') \
+            || { rc=$?; echo "ERROR: 'glab mr view $ID' failed (exit $rc; see stderr above)"; exit 1; }
+        diff=$(glab mr diff "$ID" --raw) \
+            || { rc=$?; echo "ERROR: 'glab mr diff $ID --raw' failed (exit $rc; see stderr above; this is a fetch failure, not a confirmed empty diff)"; exit 1; }
+        echo "forge: gitlab"
+        echo "head_sha: ${head_sha//\"/} (informational; glab mr note create --file/--line targets the latest diff version)"
+        ;;
+esac
 echo "path: $FILE_PATH"
 echo ""
 

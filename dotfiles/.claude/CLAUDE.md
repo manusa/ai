@@ -66,10 +66,13 @@ Net effect for read-only review:
   unsandboxed and are auto-approved by their `permissions.allow` rules — **no
   prompt**. (`autoAllowBashIfSandboxed` does NOT cover excluded commands, so the
   `allow` rule is what makes them prompt-free; without one they'd prompt.)
-- **Every skill script that calls `gh` needs its own `excludedCommands` entry** —
+- **Every skill script that calls `gh` or `glab` needs its own `excludedCommands` entry** —
   skill `!`-prefetch runs sandboxed like any Bash call, and `gh` then fails. Keep such
   scripts **read-only**: `Bash(~/.claude/skills/:*)` allows them without a prompt, so
-  a script that commits or posts would bypass the `ask` gates below.
+  a script that commits or posts would bypass the `ask` gates below. The one writing
+  script, `mn-review/scripts/post-mr-note.sh` (glab has no `--body-file`, so the MR
+  note body is read inside the excluded script), is listed in `permissions.ask` by its
+  own path: `ask` beats `allow`, so it prompts like `glab mr note` itself.
 - Everything else still runs sandboxed and auto-approves as before.
 
 Writes stay gated regardless — excluded commands still pass through `ask`/`deny`.
