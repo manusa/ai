@@ -72,7 +72,10 @@ Net effect for read-only review:
   a script that commits or posts would bypass the `ask` gates below. The one writing
   script, `mn-review/scripts/post-mr-note.sh` (glab has no `--body-file`, so the MR
   note body is read inside the excluded script), is listed in `permissions.ask` by its
-  own path: `ask` beats `allow`, so it prompts like `glab mr note` itself.
+  own path: `ask` beats `allow`, so it prompts like `glab mr note` itself. The ask rule
+  is one literal spelling, while the allow rule and the exclusion are directory-wide,
+  so the script refuses to run under any other spelling of its path
+  (`scripts/./…`, `scripts//…`).
 - Everything else still runs sandboxed and auto-approves as before.
 
 Writes stay gated regardless — excluded commands still pass through `ask`/`deny`.

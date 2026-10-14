@@ -13,8 +13,11 @@ mn_begin() {
     echo "[FETCHED: $(date -Iseconds)]"
     echo ""
     local -a targets
+    # Word-split only: a target such as 10[12] must not glob against the cwd.
+    set -f
     # shellcheck disable=SC2206 # word-splitting the argument list is the point
     targets=($1)
+    set +f
     if [ "${#targets[@]}" -gt 1 ]; then
         echo "MODE: Multi-target driver (${#targets[@]} targets)"
         echo ""
@@ -28,13 +31,14 @@ mn_begin() {
     TARGET="${targets[0]:-}"
 }
 
-# mn_forge TARGET: prints github or gitlab. The URL shape decides first, then a
-# !N / #N sigil, then the cwd origin remote (github.com or none: github; any
-# other host: gitlab).
+# mn_forge TARGET: prints github or gitlab. A merge_requests URL is GitLab on
+# any host and a github.com URL is GitHub; a !N / #N sigil picks glab / gh
+# wherever the cwd is; a bare number follows the cwd origin host (github.com or
+# none: github; any other host: gitlab).
 mn_forge() {
     case "$1" in
-        *github.com/*) echo github; return ;;
-        */-/merge_requests/*) echo gitlab; return ;;
+        */merge_requests/*) echo gitlab; return ;;
+        *://github.com/*|*://*@github.com/*) echo github; return ;;
         '!'*) echo gitlab; return ;;
         '#'*) echo github; return ;;
     esac
@@ -46,12 +50,13 @@ mn_forge() {
     esac
 }
 
-# mn_remote_host URL: the lowercase host of an https:// or scp-like git remote.
+# mn_remote_host URL: the lowercase host of an https:// / ssh:// remote or an
+# scp-like one, with or without a user.
 mn_remote_host() {
     local host
     case "$1" in
         *://*) host="${1#*://}"; host="${host%%/*}"; host="${host##*@}"; host="${host%%:*}" ;;
-        *@*:*) host="${1#*@}"; host="${host%%:*}" ;;
+        *:*) host="${1%%:*}"; host="${host##*@}" ;;
         *) host="" ;;
     esac
     printf '%s' "$host" | tr '[:upper:]' '[:lower:]'
@@ -65,23 +70,28 @@ mn_id() {
     printf '%s' "$t"
 }
 
-# mn_cache_file ID: the per-target changed-files cache the scripts share.
+# mn_cache_file FORGE ID: the changed-files cache, keyed by forge, cwd
+# repository and target so !42 and #42, or two checkouts, never share a file.
 mn_cache_file() {
-    printf '/tmp/mn-review-files-%s.txt' "$(printf '%s' "$1" | tr -c 'A-Za-z0-9' '_')"
+    local repo
+    repo=$(git rev-parse --show-toplevel 2>/dev/null)
+    printf '/tmp/mn-review-files-%s.txt' "$(printf '%s %s %s' "$1" "$repo" "$2" | tr -c 'A-Za-z0-9' '_')"
 }
 
-# mn_changed_files FORGE ID: the changed paths, one per line, cached for two
-# minutes so get-language-guidelines reuses what get-pr-files just fetched.
+# mn_changed_files FORGE ID [fetch|cached]: the changed paths, one per line.
+# "fetch" (the default) always asks the forge and rewrites the cache;
+# "cached" serves a cache younger than two minutes, so get-language-guidelines
+# reuses what get-pr-files just fetched under the same [FETCHED:] run.
 mn_changed_files() {
-    local cache files
-    cache=$(mn_cache_file "$2")
-    if [ -f "$cache" ] && [ -n "$(find "$cache" -mmin -2 2>/dev/null)" ]; then
+    local forge="$1" id="$2" mode="${3:-fetch}" cache files
+    cache=$(mn_cache_file "$forge" "$id")
+    if [ "$mode" = cached ] && [ -f "$cache" ] && [ -n "$(find "$cache" -mmin -2 2>/dev/null)" ]; then
         cat "$cache"
         return 0
     fi
-    case "$1" in
-        github) files=$(gh pr view "$2" --json files --jq '.files[].path') || return $? ;;
-        gitlab) files=$(glab mr diff "$2" --raw | awk '/^diff --git / { sub(/^diff --git a\/.* b\//, ""); print }') || return $? ;;
+    case "$forge" in
+        github) files=$(gh pr view "$id" --json files --jq '.files[].path') || return $? ;;
+        gitlab) files=$(glab mr diff "$id" --raw | mn_diff_paths) || return $? ;;
         *) return 1 ;;
     esac
     printf '%s\n' "$files" > "$cache" 2>/dev/null || true
@@ -93,4 +103,59 @@ mn_local_files() {
     git diff --name-only HEAD 2>/dev/null
     git diff --name-only --cached 2>/dev/null
     git ls-files --others --exclude-standard 2>/dev/null
+}
+
+# MN_AWK_LIB prefixes the awk programs that parse a unified diff.
+# mn_header_path(s) turns the text after a "--- " / "+++ " / "rename to "
+# marker into the plain path: it drops the tab git appends after a name with
+# spaces, decodes a C-quoted name ("a/caf\303\251.md", octal bytes and \t \n
+# \" \\ escapes) and strips the a/ or b/ prefix. Run awk under LC_ALL=C so
+# %c emits the decoded byte, not a code point.
+# shellcheck disable=SC2016 # awk source, not shell expansion
+MN_AWK_LIB='
+function mn_header_path(s,    out, i, c, n) {
+    sub(/\t$/, "", s)
+    if (substr(s, 1, 1) == "\"") {
+        s = substr(s, 2, length(s) - 2)
+        out = ""
+        for (i = 1; i <= length(s); i++) {
+            c = substr(s, i, 1)
+            if (c != "\\") { out = out c; continue }
+            i++
+            c = substr(s, i, 1)
+            if (c ~ /^[0-7]$/) {
+                n = c * 64 + substr(s, i + 1, 1) * 8 + substr(s, i + 2, 1)
+                i += 2
+                out = out sprintf("%c", n)
+            } else if (c == "n") {
+                out = out "\n"
+            } else if (c == "t") {
+                out = out "\t"
+            } else {
+                out = out c
+            }
+        }
+        s = out
+    }
+    sub(/^[ab]\//, "", s)
+    return s
+}
+'
+
+# mn_diff_paths: reads a unified diff on stdin and prints each file's path in
+# the new version (the old one for a deletion), once, in diff order.
+mn_diff_paths() {
+    LC_ALL=C awk "$MN_AWK_LIB"'
+function mn_emit(p) { if (p != "" && !seen[p]++) print p }
+/^diff --git / { in_header = 1; old = ""; next }
+in_header && /^rename to / { mn_emit(mn_header_path(substr($0, 11))); next }
+in_header && /^--- / { old = mn_header_path(substr($0, 5)); next }
+in_header && /^\+\+\+ / {
+    p = substr($0, 5)
+    mn_emit(p == "/dev/null" ? old : mn_header_path(p))
+    in_header = 0
+    next
+}
+in_header && /^@@ / { in_header = 0 }
+'
 }

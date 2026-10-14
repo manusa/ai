@@ -11,5 +11,5 @@ if [ -z "$TARGET" ]; then
     exit 0
 fi
 
-mn_changed_files "$(mn_forge "$TARGET")" "$(mn_id "$TARGET")" \
+mn_changed_files "$(mn_forge "$TARGET")" "$(mn_id "$TARGET")" fetch \
     || echo "ERROR: could not fetch the changed files of '$TARGET' (exit $?; see stderr above; this is a fetch failure, not a confirmed empty file set)"

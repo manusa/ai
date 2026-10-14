@@ -13,8 +13,8 @@ mn_begin "$1"
 if [ -z "$TARGET" ]; then
     files=$(mn_local_files)
 else
-    # Reuses the list get-pr-files just cached instead of refetching it.
-    files=$(mn_changed_files "$(mn_forge "$TARGET")" "$(mn_id "$TARGET")" 2>/dev/null)
+    # Reuses the list get-pr-files just fetched and cached instead of refetching it.
+    files=$(mn_changed_files "$(mn_forge "$TARGET")" "$(mn_id "$TARGET")" cached 2>/dev/null)
 fi
 
 if [ -z "$files" ]; then

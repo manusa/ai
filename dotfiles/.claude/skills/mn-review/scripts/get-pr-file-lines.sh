@@ -42,12 +42,13 @@ echo "path: $FILE_PATH"
 echo ""
 
 # ENVIRON instead of -v so awk doesn't interpret backslash escapes in the values.
-printf '%s\n' "$diff" | FILE_PATH="$FILE_PATH" PATTERN="$3" awk '
+printf '%s\n' "$diff" | FILE_PATH="$FILE_PATH" PATTERN="$3" LC_ALL=C awk "$MN_AWK_LIB"'
 BEGIN { file = ENVIRON["FILE_PATH"]; pattern = ENVIRON["PATTERN"] }
 /^diff --git / { in_header = 1; in_file = 0; next }
 # Match "+++ b/<path>" only in the file header: inside a hunk, an added line whose
-# content starts with "++ " also begins with "+++ ".
-in_header && /^\+\+\+ / { in_file = ($0 == "+++ b/" file); next }
+# content starts with "++ " also begins with "+++ ". The header path may carry a
+# trailing tab (names with spaces) or C quoting (non-ASCII), so normalize it.
+in_header && /^\+\+\+ / { in_file = (mn_header_path(substr($0, 5)) == file); next }
 in_header && !/^@@ / { next }
 !in_file { in_header = 0; next }
 /^@@ / {
