@@ -33,26 +33,32 @@ github_comments() {
     reviews=$(gh api "repos/$repo/pulls/$number/reviews?per_page=100" --paginate \
         --jq '.[] | select(.body != "" or .state != "COMMENTED") | "--- @\(.user.login) [\(.state)] (\(.submitted_at)):\n\(.body)\n"') || return $?
     inline=$(gh api "repos/$repo/pulls/$number/comments?per_page=100" --paginate \
-        --jq '.[] | "--- @\(.user.login) (\(.created_at)) on \(.path):\(.line // .original_line) [\(.side)]\(if .in_reply_to_id then " (reply)" else "" end):\n\(.body)\n"') || return $?
+        --jq '.[] | "--- @\(.user.login) (\(.created_at)) on \(.path):\(if .line == null then "\(.original_line) (outdated)" else (.line | tostring) end) [\(.side)]\(if .in_reply_to_id then " (reply)" else "" end):\n\(.body)\n"') || return $?
     section "Comments" "$issue_comments"
     section "Reviews" "$reviews"
-    section "Inline review comments (new-file line numbers; [LEFT] marks a removed line)" "$inline"
+    section "Inline review comments (new-file line numbers; [LEFT] marks a removed line; (outdated) marks a line no longer in the diff)" "$inline"
 }
 
 gitlab_comments() {
     local threads
     threads=$(glab mr view "$ID" --comments --per-page 100 --output json | jq -r '
-        .Discussions // [] | .[] | select(any(.notes[]; .system == false)) |
-        (if .notes[0].resolvable then (if .notes[0].resolved then " [resolved]" else " [unresolved]" end) else "" end) as $state |
-        "=== Thread \(.id[0:8])\($state)",
-        (.notes[] | select(.system == false) |
-          "--- @\(.author.username) (\(.created_at))" +
-          (if .position then
-             " on \(.position.new_path // .position.old_path):" +
-             (if .position.new_line then (.position.new_line | tostring) else "old " + (.position.old_line | tostring) end)
-           else "" end) + ":",
-          .body, "")') || return $?
-    section "Discussion threads (inline threads show path:line; old N marks a removed line)" "$threads"
+        if has("Discussions") then . else error("glab mr view JSON carries no Discussions key") end
+        | .sha as $head
+        | .Discussions[] | select(any(.notes[]; .system == false))
+        | (if .notes[0].resolvable then (if .notes[0].resolved then " [resolved]" else " [unresolved]" end) else "" end) as $state
+        | "=== Thread \(.id[0:8])\($state)",
+          (.notes[] | select(.system == false)
+           | "--- @\(.author.username) (\(.created_at))"
+             + (if .position then
+                  " on " + (.position.new_path // .position.old_path)
+                  + (if .position.new_line then ":" + (.position.new_line | tostring)
+                     elif .position.old_line then " (old line " + (.position.old_line | tostring) + ")"
+                     else "" end)
+                  + (if $head != null and .position.head_sha != null and .position.head_sha != $head then " (outdated)" else "" end)
+                else "" end)
+             + ":",
+           .body, "")') || return $?
+    section "Discussion threads (path:line is a new-file line; (old line N) a removed line; (outdated) a superseded diff version)" "$threads"
 }
 
 case "$(mn_forge "$TARGET")" in

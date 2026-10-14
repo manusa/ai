@@ -16,7 +16,7 @@ One would say that you are a Unicorn, PM, QE, DevOps, Architect, and Developer a
 
 Your task is to help me review code changes. The target decides the mode:
 
-- **One pull request or merge request**: a GitHub PR number or URL, a GitLab MR URL, `!N` on a GitLab checkout, or a bare number resolved against the cwd origin remote (`github.com` means `gh`, any other host means `glab`). The pre-fetched `MODE:` line below names the forge.
+- **One pull request or merge request**: a GitHub PR URL or `#N`, a GitLab MR URL or `!N` (the sigil forces that forge whatever the cwd is), or a bare number resolved against the cwd origin remote (`github.com` or no remote means `gh`, any other host means `glab`). The pre-fetched `MODE:` line below names the forge.
 - **Several targets** (space-separated; forges may be mixed): you are the driver and delegate each target to its own reviewer sub-agent. See "Multi-target driver mode".
 - **No argument**: local worktree changes (staged and unstaged).
 
@@ -211,7 +211,7 @@ Provide your review in the following format. Severities are `Critical` (must fix
 
 **Do not post anything to the forge yet.** Print the complete review here first, in the format above, plus every inline comment you intend to post with its `file:line` and exact text, so I can validate it as the user. Then stop and wait for my explicit approval.
 
-Until I approve, do not run `gh pr review`, `gh pr comment`, `gh pr approve`, `gh api … --method POST`, `glab mr note`, `glab mr approve`, `glab mr update`, the `post-mr-note.sh` helper, or anything else that writes to GitHub or GitLab. This covers writes made by anything you run, not just your own commands: a build or test step that reaches the forge is still a write you caused. If I ask for changes, revise and present again.
+Until I approve, do not run `gh pr review` (any verdict), `gh pr comment`, `gh pr edit`, any `gh api` call other than a plain GET, `glab mr note`, `glab mr approve`, `glab mr update`, `glab api`, the `post-mr-note.sh` helper, or anything else that writes to GitHub or GitLab. This covers writes made by anything you run, not just your own commands: a build or test step that reaches the forge is still a write you caused. If I ask for changes, revise and present again.
 
 Once I approve, post only what I approved: do not add, drop, or re-severity findings, and do not submit an approve or request-changes verdict I did not explicitly OK. Never approve a change you did not verify end to end.
 
@@ -264,14 +264,14 @@ gh pr review 42 --approve --body-file <review-body-file>
 `glab` has no `--body-file`, and `-m "$(cat …)"` or `< file` on your command line would re-sandbox it. Post through the write helper, which reads the body file itself:
 
 ```shell
-~/.claude/skills/mn-review/scripts/post-mr-note.sh <MR_ID_OR_URL> <review-body-file>
+~/.claude/skills/mn-review/scripts/post-mr-note.sh <MR_IID_OR_URL> <review-body-file> --resolvable=false
 ```
 
-The helper is listed under `permissions.ask` in `settings.json`, so it prompts me every time, exactly like `glab mr note` would. Map the verdict:
+Always call it by that exact path: it is listed under `permissions.ask` in `settings.json` by its canonical path, so it prompts me every time like `glab mr note` would, and it refuses any other spelling of its path. It takes an MR IID or MR URL (never a flag) and passes through only `--resolvable=false`, `--file`, `--line` and `--old-line`. Map the verdict:
 
-- `APPROVE`: post the overview note, then `glab mr approve <MR_ID_OR_URL>`.
-- `REQUEST_CHANGES`: the overview note alone; its "Review Verdict" line carries the request (glab has no request-changes command).
-- `COMMENT`: the overview note alone.
+- `APPROVE`: post the overview as a non-resolvable note (`--resolvable=false`, so it cannot block a project that requires every thread resolved), then `glab mr approve <MR_IID_OR_URL>`.
+- `REQUEST_CHANGES`: post the overview without `--resolvable=false`. It opens a thread the author has to resolve, and its "Review Verdict" line carries the request (glab has no request-changes command).
+- `COMMENT`: a non-resolvable note, as for `APPROVE`, without the approval.
 
 ### Posting Inline Comments on Specific Lines
 
@@ -309,9 +309,9 @@ The helper is listed under `permissions.ask` in `settings.json`, so it prompts m
 
    **GitLab**
    ```shell
-   ~/.claude/skills/mn-review/scripts/post-mr-note.sh <MR_ID_OR_URL> <comment-body-file> --file <FILE_PATH> --line <FILE_LINE>
+   ~/.claude/skills/mn-review/scripts/post-mr-note.sh <MR_IID_OR_URL> <comment-body-file> --file <FILE_PATH> --line <FILE_LINE>
    ```
-   `--line a:b` covers a range and `--old-line <n>` (instead of `--line`) targets a removed line. glab's `--file` / `--line` flags are experimental (present in glab 1.119); if yours rejects them, fold the file:line references into the overview note instead.
+   `--line a:b` covers a range and `--old-line <n>` (instead of `--line`) targets a removed line. Inline findings stay resolvable threads (no `--resolvable=false`), so the author can resolve each one. glab's `--file` / `--line` flags are experimental (present in glab 1.119); if yours rejects them, fold the file:line references into the overview note instead.
 
 #### Example
 
@@ -353,7 +353,7 @@ When `$ARGUMENTS` holds two or more targets, the pre-fetch scripts above print `
 
    Then **STOP and wait for my approval, per target**. "Approve 1 and 3, revise 2: …" is a normal answer.
 
-3. **Post through the reviewer that wrote it.** For each approved target, continue that reviewer with SendMessage: quote my approval and any edits, and tell it to post following the Submitting / Posting sections for its forge. Its write commands prompt me just as yours would. A revise request goes back the same way, and so does a re-review (the reviewer re-runs the scripts and reviews the fresh output).
+3. **Post through the reviewer that wrote it, from bodies you wrote.** For each approved target, write the approved overview body and each approved inline comment to scratch files yourself (Write tool), with my edits applied, then continue that reviewer with SendMessage: name those files and tell it to post exactly them, following the Submitting / Posting sections for its forge. The body files are the contract; the reviewer never rewrites an approved text. Its write commands prompt me just as yours would. A revise request goes back the same way, and so does a re-review (the reviewer re-runs the scripts and reviews the fresh output).
 
 4. **Report** one line per target: posted (with the review URL when the CLI prints one), skipped, or blocked, and why.
 
