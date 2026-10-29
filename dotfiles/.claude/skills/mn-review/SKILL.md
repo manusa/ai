@@ -301,7 +301,7 @@ gh pr review 42 --approve --body-file <review-body-file>
 ~/.claude/skills/mn-review/scripts/post-mr-note.sh <MR_IID_OR_URL> <review-body-file> --resolvable=false
 ```
 
-Always call it by that exact path: it is listed under `permissions.ask` in `settings.json` by its canonical path, so it prompts me every time like `glab mr note` would, and it refuses any other spelling of its path. It takes an MR IID or MR URL (never a flag) and passes through only `--resolvable=false`, `--file`, `--line` and `--old-line`. Map the verdict:
+Always call it by that exact path: it is allow-listed in `settings.json` via the directory-wide skills rule and runs only after the skill's present-then-stop approval gate, so it posts without a per-command prompt, and it refuses any other spelling of its path. It takes an MR IID or MR URL (never a flag) and passes through only `--resolvable=false`, `--file`, `--line` and `--old-line`. Map the verdict:
 
 - `APPROVE`: post the overview as a non-resolvable note (`--resolvable=false`, so it cannot block a project that requires every thread resolved), then `glab mr approve <MR_IID_OR_URL>`.
 - `REQUEST_CHANGES`: post the overview without `--resolvable=false`. It opens a thread the author has to resolve, and its "Review Verdict" line carries the request (glab has no request-changes command).
