@@ -12,8 +12,11 @@
 mn_begin "$1"
 
 # Fetch at most this many forge issues and this many Jira tickets; the rest are
-# listed as NOT READ with the command that reads them.
+# listed as NOT READ with the command that reads them. A GitHub mention is
+# probed to tell an issue from a pull request; past MAX_PR_PROBES pull requests
+# the remaining mentions are listed as UNPROBED instead.
 MAX_FETCH=10
+MAX_PR_PROBES=30
 
 # A per-run random id in the fence lines, so issue text cannot forge an END line.
 FENCE_ID=$(od -An -N6 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
@@ -22,11 +25,12 @@ FENCE_ID=$(od -An -N6 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
 # MN_JIRA_AWK: prints "key\tKEY" for each Jira key in stdin, "ignored\tTOKEN" for
 # key-shaped tokens that are not tickets. With MN_LOWER set it scans lowercase
 # keys instead (branch names, minus words such as issue-12 or fix-3), printing
-# "lower\tKEY" uppercased. Project parts may hold "_" (MY_PROJ-12), and a "_"
-# may follow the number (LWLP-77_fix). A token inside a longer word (aLWLP-1,
-# LWLP-99x) is ignored, and so is one that continues as a longer id or a version
-# (CVE-2024-1234, GO-2024-1234, RHSA-2024:1234, TLS-1.2) or whose project part
-# names a standard, a license, an algorithm or a non-Jira id scheme.
+# "lower\tKEY" uppercased. A "_" may follow the number (LWLP-77_fix) or join a
+# lowercase word before the key (fix_LWLP-7); a project part holding "_"
+# (MAX_RETRIES-1) is ignored, like a token inside a longer word (aLWLP-1,
+# LWLP-99x), one that continues as a longer id or a version (CVE-2024-1234,
+# GO-2024-1234, RHSA-2024:1234, TLS-1.2) and one whose project part names a
+# standard, a license, an algorithm or a non-Jira id scheme.
 # shellcheck disable=SC2016 # awk source, not shell expansion
 MN_JIRA_AWK='
 function ignore(start, len,    a, b) {
@@ -50,16 +54,16 @@ BEGIN {
     off = 1
     while (1) {
         rest = substr(line, off)
-        # A lowercase branch key takes no "_", which branches use as a separator.
         if (lower) found = match(rest, /[a-z][a-z0-9]+-[0-9]+/)
-        else found = match(rest, /[A-Z][A-Z0-9_]+-[0-9]+/)
+        else found = match(rest, /[A-Z][A-Z0-9]+-[0-9]+/)
         if (!found) break
         start = off + RSTART - 1
         len = RLENGTH
         off = start + len
         prev = start > 1 ? substr(line, start - 1, 1) : ""
-        # A "_" before the match is a separator (fix_LWLP-7): an uppercase run
-        # before it would have matched as part of the key.
+        # A "_" before the match separates a lowercase word (fix_LWLP-7) but
+        # extends an uppercase project part (MAX_RETRIES-1).
+        if (prev == "_" && !lower && start > 2 && substr(line, start - 2, 1) ~ /[A-Z0-9]/) { ignore(start, len); continue }
         if (prev ~ /[A-Za-z0-9]/ || substr(line, off, 1) ~ /[A-Za-z0-9]/) { ignore(start, len); continue }
         key = toupper(substr(line, start, len))
         project = key
@@ -67,7 +71,7 @@ BEGIN {
         if (substr(line, off, 2) ~ /^[-:.][0-9]/ || (project in deny) || (lower && (project in branch_word))) {
             if (lower || project == "GH") continue
             full = substr(line, start)
-            match(full, /^[A-Z0-9_]+-[0-9]+([-:.][0-9A-Za-z]+)*/)
+            match(full, /^[A-Z0-9]+-[0-9]+([-:.][0-9A-Za-z]+)*/)
             full = substr(full, 1, RLENGTH)
             if (!ignored[full]++) print "ignored\t" full
             continue
@@ -172,7 +176,10 @@ BEGIN { host = ENVIRON["HOST"]; base = ENVIRON["BASE"] }
 # included. Bots quote upstream release notes and commit lists there, whose #N
 # and KEY-N name another project's issues. A tag counts only as "<details>" or
 # "<details " outside a backtick code span or fence; a block still open at the
-# end of the input is kept, so a stray tag never hides the rest of the body.
+# end of the input is kept, so a stray tag never hides the rest of the body. A
+# backtick run whose closer lies past the next </details>, or for an inline span
+# (one or two backticks) past a blank line, stays literal, as in CommonMark, so
+# a stray backtick in release notes cannot hide the block's end.
 # shellcheck disable=SC2016
 MN_DETAILS_AWK='
 function put(t) { if (depth) buf = buf t; else out = out t }
@@ -180,6 +187,7 @@ function put(t) { if (depth) buf = buf t; else out = out t }
 END {
     i = 1
     n = length(s)
+    ls = tolower(s)
     while (i <= n) {
         rest = substr(s, i)
         if (!match(rest, /[`<]/)) { put(rest); break }
@@ -190,6 +198,9 @@ END {
             while (j <= n && substr(s, j, 1) == "`") j++
             run = substr(s, i, j - i)
             k = index(substr(s, j), run)
+            limit = index(substr(ls, j), "</details>")
+            if (length(run) < 3 && match(substr(s, j), /\n[ \t]*\n/) && (!limit || RSTART < limit)) limit = RSTART
+            if (k && limit && k > limit) k = 0
             e = k ? j + k - 1 + length(run) : j
             put(substr(s, i, e - i))
             i = e
@@ -346,7 +357,7 @@ fetch_gitlab() {
     rendered=$(printf '%s' "$json" | jq -r '
         if has("Notes") then . else error("glab issue view JSON carries no Notes key") end
         | "# \(.title)", "State: \(.state) | Author: @\(.author.username) | \(.web_url)", "", (.description // "(no description)"), "", "## Comments",
-          (.Notes | map(select(.system == false)) | if length == 0 then "(none)" else (.[] | "--- @\(.author.username) (\(.created_at)):\n\(.body)\n") end)') \
+          ((.Notes // []) | map(select(.system == false)) | if length == 0 then "(none)" else (.[] | "--- @\(.author.username) (\(.created_at)):\n\(.body)\n") end)') \
         || { FETCH_ERR="the issue JSON from 'glab issue view $3 -R $1/$2' could not be rendered (jq exit $?; see stderr above)"; return 1; }
     gitlab_visibility "$1" "$2"
     fence_open "$1/$2#$3" "$VIS"
@@ -376,16 +387,17 @@ not_read() {
 
 # report MODE_LINE: prints the reference list, then fetches each reference.
 report() {
-    local merged forge_count=0 jira_count=0 kind id src rc repo hostpath
+    local merged forge_count=0 jira_count=0 pr_probes=0 kind id src rc repo hostpath
     NOT_READ=""
+    UNPROBED=""
     echo "MODE: $1"
     echo ""
     if [ -n "$TARGET_VIS" ]; then
-        if [ "$TARGET_VIS" = public ]; then
-            echo "Target visibility: public. A posted review is public: name any reference not tagged 'visibility: public', never quote or summarize it."
-        else
-            echo "Target visibility: $TARGET_VIS."
-        fi
+        # Fail safe: a target whose visibility could not be read counts as public.
+        case "$TARGET_VIS" in
+            private|internal) echo "Target visibility: $TARGET_VIS." ;;
+            *) echo "Target visibility: $TARGET_VIS. A posted review is public, or must be treated as public: name any reference not tagged 'visibility: public', never quote or summarize it." ;;
+        esac
         echo ""
     fi
     local note
@@ -425,9 +437,17 @@ report() {
                     not_read "$id" "over the fetch cap of $MAX_FETCH issues" "Read it: gh issue view ${id##*#} --repo $repo --json title,body,comments"
                     continue
                 fi
+                # A closing reference is an issue, so it never waits on the probe cap.
+                if [ "$pr_probes" -ge "$MAX_PR_PROBES" ] && [ "${src#*closing}" = "$src" ]; then
+                    UNPROBED="$UNPROBED  - $id
+"
+                    echo "UNPROBED: over the cap of $MAX_PR_PROBES pull-request probes; it may be an issue (see the summary below)."
+                    echo ""
+                    continue
+                fi
                 fetch_github "$repo" "${id##*#}"
                 rc=$?
-                [ -n "$IS_PULL" ] || forge_count=$((forge_count + 1))
+                if [ -n "$IS_PULL" ]; then pr_probes=$((pr_probes + 1)); else forge_count=$((forge_count + 1)); fi
                 if [ "$rc" -ne 0 ]; then
                     not_read "$id" "$FETCH_ERR" "Read it another way, or state it in the report."
                     continue
@@ -462,10 +482,14 @@ report() {
 $merged
 EOF
 
+    if [ -n "$UNPROBED" ]; then
+        echo "UNPROBED references (past the cap of $MAX_PR_PROBES pull-request probes; read any that is an issue with gh issue view <N> --repo <owner/repo> --json title,body,comments, while a pull request needs nothing more):"
+        printf '%s\n' "$UNPROBED"
+    fi
     if [ -n "$NOT_READ" ]; then
         echo "NOT READ references (read each another way before reviewing; any still unread goes in the report, SKILL.md Review method step 1):"
         printf '%s' "$NOT_READ"
-    else
+    elif [ -z "$UNPROBED" ]; then
         echo "Every listed reference was fetched above."
     fi
 }

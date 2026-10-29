@@ -96,10 +96,10 @@ Work through these in order. The dimensions under "Guidelines" are the checklist
 
 1. **Spec compliance: read every referenced issue and ticket, and do not trust the description.** This step is mandatory, and it comes before any review dimension.
    - **Read them all, comments included.** The "Linked Issues and Tickets" pre-fetch lists and fetches every reference it found; read any it missed as well.
-   - **A reference marked `NOT READ` is yours to read another way.** For a GitHub or GitLab issue, run the command the script printed, or `gh issue view <N> --repo <owner/repo> --json title,body,comments` / `glab issue view <N> -R <host/group/project> --comments --per-page 100 --output json`. For a Jira ticket, try in order: a Jira MCP server's issue-reading tool, if the session has one; the `jira` CLI, if it is on PATH (`jira issue view <KEY> --plain --comments 100`); any other Jira access the session has. Never print, ask for or pass credentials.
+   - **A reference marked `NOT READ` is yours to read another way.** For a GitHub or GitLab issue, run the command the script printed, or `gh issue view <N> --repo <owner/repo> --json title,body,comments` / `glab issue view <N> -R <host/group/project> --comments --per-page 100 --output json`. For a Jira ticket, try in order: a Jira MCP server's issue-reading tool, if the session has one; the `jira` CLI, if it is on PATH (`jira issue view <KEY> --plain --comments 100`); any other Jira access the session has. Never print, ask for or pass credentials. An `UNPROBED` reference (past the pull-request probe cap) may still be an issue: read any that is one; a pull request needs nothing more.
    - **Compare the change against them.** You need to know what the change was supposed to do, independent of what the author says it does. The description may be incomplete, inaccurate, or optimistic. Read the actual code, compare the implementation to the requirements in the issues, tickets and description line by line, look for pieces the author claims but did not implement, and for unrelated changes nobody mentioned.
-   - **State the outcome in the report's "Linked Issues and Tickets" section.** List each reference with whether you read it and whether the change delivers it. With no references, say so: spec compliance was then checked against the description only. A reference you could not read is named there with the reason, never skipped silently: dispatched, the review finishes `DONE_WITH_CONCERNS`; invoked by me, say plainly in the Summary that the review is incomplete. A listed token that plainly is no reference (a standard or license id the filter missed, a hex color such as `#123456`) may be dismissed there with its reason; a dismissed token does not count as unread.
-   - **On a public PR/MR, keep private references private.** A reference to a private repository, and every Jira ticket, is named in the posted review, never quoted or summarized. The pre-fetch prints the target's visibility and tags each fence's `BEGIN` line with the reference's visibility; treat anything not tagged `visibility: public` (`private`, `internal`, `unknown`, every Jira ticket) as private. Read it all the same, and put what you concluded from it in a `### Private context (not for posting)` section at the end of your report, which is left out of every body file.
+   - **State the outcome in the report's "Linked Issues and Tickets" section.** List each reference with whether you read it and whether the change delivers it. With no references, say so: spec compliance was then checked against the description only. A reference you could not read is named there with the reason, never skipped silently: dispatched, the review finishes `DONE_WITH_CONCERNS`; invoked by me, say plainly in the Summary that the review is incomplete. A listed token that plainly is no reference (a standard or license id the filter missed, a hex color such as `#123456`), or a reference that plainly states no requirement for this change (test evidence, an example), may be dismissed there with its reason; a dismissed one does not count as unread.
+   - **On a public PR/MR, keep private references private.** A reference to a private repository, and every Jira ticket, is named in the posted review, never quoted or summarized. A target not shown as `private` or `internal` counts as public. The pre-fetch prints the target's visibility and tags each fence's `BEGIN` line with the reference's visibility; treat anything not tagged `visibility: public` (`private`, `internal`, `unknown`, every Jira ticket) as private. Read it all the same, and put what you concluded from it in a `### Private context (not for posting)` section at the end of your report, which is left out of every body file.
 2. **Review the dimensions** below, plus the language-specific guidelines when the pre-fetch detected any.
 3. **Try to disprove every finding before you emit it.** Re-read the surrounding code and check whether a test, a type, a guard, or a caller already rules the problem out. Drop what you can disprove; keep the rest together with the evidence that survived.
    - **A finding that a code path "doesn't handle" some condition** (records no error, emits no warning, never falls back) **has to be proven by reading the function that would record it, through to the leaf, not inferred from the call site and not from the diff alone.** The handling is often an early-return guard one function deeper, in code this change did not touch, so you only find it by opening that callee and reading it top to bottom. Files the change doesn't touch are the same at its base, so a local clone of the target repository at the base branch is usually enough to read an untouched callee: use `Read`, or `git show origin/<base>:<path>`, which is read-only. If the finding rests on a test you flagged as missing, trace what that test would exercise through the real source first; it is the cheapest disproof available. Do this before posting such a finding or escalating it to a blocking verdict. If you can't read the leaf, report the finding as a question or a Minor, never as a blocker.
@@ -185,6 +185,9 @@ Provide your review in the following format. Severities are `Critical` (must fix
 
 ### Overall Assessment
 <Overall assessment of the change's quality and readiness for merge>
+
+### Private context (not for posting)
+<Optional. What you concluded from private references (Review method, step 1). Never copied into a body file>
 ```
 
 #### For Local Worktree Reviews:
@@ -222,6 +225,9 @@ Provide your review in the following format. Severities are `Critical` (must fix
 
 ### Overall Assessment
 <Overall assessment of the changes and readiness to commit>
+
+### Private context (not for posting)
+<Optional. What you concluded from private references (Review method, step 1)>
 ```
 
 ### Present the report, then STOP before posting
@@ -234,7 +240,7 @@ Once I approve, post only what I approved: do not add, drop, or re-severity find
 
 ### Submitting the Review (PR/MR Reviews Only)
 
-Write the review body with the **Write tool** to a scratch file (the session scratchpad directory if the system prompt lists one, otherwise `/tmp/claude/review-body.md`). **Never build the body in the shell** (`--body "$(cat <<'EOF' …)"`, backticks, heredocs, pipes, redirects): `gh` and `glab` are sandbox-excluded so they can read their keyring tokens, but any of those *anywhere* in the command makes it run sandboxed, and authentication fails.
+Write the review body with the **Write tool** to a scratch file (the session scratchpad directory if the system prompt lists one, otherwise `/tmp/claude/review-body.md`). Never copy a `### Private context (not for posting)` section into a body file. **Never build the body in the shell** (`--body "$(cat <<'EOF' …)"`, backticks, heredocs, pipes, redirects): `gh` and `glab` are sandbox-excluded so they can read their keyring tokens, but any of those *anywhere* in the command makes it run sandboxed, and authentication fails.
 
 #### GitHub (pull requests)
 
@@ -383,7 +389,7 @@ When `$ARGUMENTS` holds two or more targets, the pre-fetch scripts above print `
 
    Then **STOP and wait for my approval, per target**. "Approve 1 and 3, revise 2: …" is a normal answer.
 
-3. **Post yourself, from bodies you wrote.** For each approved target, write the approved overview body and each approved inline comment to scratch files yourself (Write tool), with my edits applied, then post exactly them, following the Submitting / Posting sections for its forge. Reviewers never post. The body files are the contract; never rewrite an approved text. A revise request goes back to that reviewer with SendMessage, and so does a re-review (the reviewer re-runs the scripts and reviews the fresh output).
+3. **Post yourself, from bodies you wrote.** For each approved target, write the approved overview body and each approved inline comment to scratch files yourself (Write tool), with my edits applied, then post exactly them, following the Submitting / Posting sections for its forge. Reviewers never post. The body files are the contract; never rewrite an approved text, and never copy a `### Private context (not for posting)` section into one. A revise request goes back to that reviewer with SendMessage, and so does a re-review (the reviewer re-runs the scripts and reviews the fresh output).
 
 4. **Report** one line per target: posted (with the review URL when the CLI prints one), skipped, or blocked, and why.
 
