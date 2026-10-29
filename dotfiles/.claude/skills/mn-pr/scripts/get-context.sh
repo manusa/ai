@@ -34,11 +34,12 @@ git_dir=$(g rev-parse --path-format=absolute --git-dir 2>/dev/null)
 common_dir=$(g rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
 if [ "$git_dir" = "$common_dir" ]; then worktree=main; else worktree=linked; fi
 
-# Fingerprint: HEAD plus every changed or untracked path and its working-tree
-# blob, so Execute can tell whether the tree changed since Prepare.
+# Fingerprint: HEAD, the staged blobs, and every changed or untracked path with
+# its working-tree blob, so Execute can tell whether the change moved since
+# Prepare. The branch is left out: Execute checks it on its own.
 fingerprint() {
     g rev-parse HEAD 2>/dev/null
-    g symbolic-ref --quiet --short HEAD 2>/dev/null
+    g diff-index --cached --raw -z HEAD 2>/dev/null
     local entry status path
     while IFS= read -r -d '' entry; do
         status="${entry:0:2}"
