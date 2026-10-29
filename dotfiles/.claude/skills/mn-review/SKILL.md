@@ -96,7 +96,7 @@ Work through these in order. The dimensions under "Guidelines" are the checklist
 
 1. **Spec compliance: read every referenced issue and ticket, and do not trust the description.** This step is mandatory, and it comes before any review dimension.
    - **Read them all, comments included.** The "Linked Issues and Tickets" pre-fetch lists and fetches every reference it found; read any it missed as well.
-   - **A reference marked `NOT READ` is yours to read another way.** For a GitHub or GitLab issue, run the command the script printed, or `gh issue view <N> --repo <owner/repo> --json title,body,comments` / `glab issue view <N> -R <host/group/project> --comments --per-page 100 --output json`. For a Jira ticket, try in order: a Jira MCP server's issue-reading tool, if the session has one; the `jira` CLI, if it is on PATH (`jira issue view <KEY> --plain --comments 100`); any other Jira access the session has. Never print, ask for or pass credentials. An `UNPROBED` reference (past the pull-request probe cap) may still be an issue: read any that is one; a pull request needs nothing more.
+   - **A reference marked `NOT READ` is yours to read another way.** For a GitHub or GitLab issue, run the command the script printed, or `gh issue view <N> --repo <owner/repo> --json title,body,comments` / `glab issue view <N> -R <host/group/project> --comments --per-page 100 --output json`. For a Jira ticket the pre-fetch missed or capped, run `~/.claude/skills/mn-review/scripts/get-jira-issue.sh <KEY> [<KEY>...]`: read-only and prompt-free, it reads through the `jira` CLI when one is on PATH (never run `jira` yourself, which the sandbox cuts off from the Jira host). If a ticket is still `NOT READ`, try a Jira MCP server's issue-reading tool, if the session has one, then any other Jira access the session has. Never print, ask for or pass credentials. An `UNPROBED` reference (past the pull-request probe cap) may still be an issue: read any that is one; a pull request needs nothing more.
    - **Compare the change against them.** You need to know what the change was supposed to do, independent of what the author says it does. The description may be incomplete, inaccurate, or optimistic. Read the actual code, compare the implementation to the requirements in the issues, tickets and description line by line, look for pieces the author claims but did not implement, and for unrelated changes nobody mentioned.
    - **State the outcome in the report's "Linked Issues and Tickets" section.** List each reference with whether you read it and whether the change delivers it. With no references, say so: spec compliance was then checked against the description only. A reference you could not read is named there with the reason, never skipped silently: dispatched, the review finishes `DONE_WITH_CONCERNS`; invoked by me, say plainly in the Summary that the review is incomplete. A listed token that plainly is no reference (a standard or license id the filter missed, a hex color such as `#123456`), or a reference that plainly states no requirement for this change (test evidence, an example), may be dismissed there with its reason; a dismissed one does not count as unread.
    - **On a public PR/MR, keep private references private.** A reference to a private repository, and every Jira ticket, is named in the posted review, never quoted or summarized. A target not shown as `private` or `internal` counts as public. The pre-fetch prints the target's visibility and tags each fence's `BEGIN` line with the reference's visibility; treat anything not tagged `visibility: public` (`private`, `internal`, `unknown`, every Jira ticket) as private. Read it all the same, and put what you concluded from it in a `### Private context (not for posting)` section at the end of your report, which is left out of every body file.
@@ -234,7 +234,7 @@ Provide your review in the following format. Severities are `Critical` (must fix
 
 **Do not post anything to the forge yet.** Print the complete review here first, in the format above, plus every inline comment you intend to post with its `file:line` and exact text, so I can validate it as the user. Then stop and wait for my explicit approval.
 
-Until I approve, do not run `gh pr review` (any verdict), `gh pr comment`, `gh pr edit`, any `gh api` call other than a plain GET, `glab mr note`, `glab mr approve`, `glab mr update`, `glab api`, the `post-mr-note.sh` helper, or anything else that writes to GitHub or GitLab. This covers writes made by anything you run, not just your own commands: a build or test step that reaches the forge is still a write you caused. If I ask for changes, revise and present again.
+Until I approve, do not run `gh pr review` (any verdict), `gh pr comment`, `gh pr edit`, any `gh api` call other than a plain GET, `glab mr note`, `glab mr approve`, `glab mr update`, `glab api`, the `post-mr-review.sh` helper, or anything else that writes to GitHub or GitLab. This covers writes made by anything you run, not just your own commands: a build or test step that reaches the forge is still a write you caused. If I ask for changes, revise and present again.
 
 Once I approve, post only what I approved: do not add, drop, or re-severity findings, and do not submit an approve or request-changes verdict I did not explicitly OK. Never approve a change you did not verify end to end.
 
@@ -242,29 +242,26 @@ Once I approve, post only what I approved: do not add, drop, or re-severity find
 
 Write the review body with the **Write tool** to a scratch file (the session scratchpad directory if the system prompt lists one, otherwise `/tmp/claude/review-body.md`). Never copy a `### Private context (not for posting)` section into a body file. **Never build the body in the shell** (`--body "$(cat <<'EOF' …)"`, backticks, heredocs, pipes, redirects): `gh` and `glab` are sandbox-excluded so they can read their keyring tokens, but any of those *anywhere* in the command makes it run sandboxed, and authentication fails.
 
+Every approved review posts in **one command, so it costs me one prompt**: one review POST on GitHub, one `post-mr-review.sh` run on GitLab. Never split it into a command per comment.
+
 #### GitHub (pull requests)
 
-With inline comments, prefer one review per PR that carries them all: it needs one approval instead of one per comment. Build the payload from the body files with `jq` as its own command (`event` is `APPROVE`, `REQUEST_CHANGES` or `COMMENT`; `commit_id` and each `line` come from `get-pr-file-lines.sh`), then post it bare:
+Post the overview and every inline comment as one review, never with `gh pr review` or one `gh api …/comments` call per comment:
 
-```shell
-jq -n --rawfile body <review-body-file> --rawfile c1 <comment-1-file> --arg sha <COMMIT_ID> \
-  '{commit_id:$sha, event:"COMMENT", body:$body, comments:[{path:"<FILE_PATH>", line:<FILE_LINE>, side:"RIGHT", body:$c1}]}' \
-  > <review-json-file>
-gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/reviews --method POST --input <review-json-file>
-```
+1. Build the payload from the body files with `jq`, as its own command (it runs sandboxed and needs no prompt). `event` is `APPROVE`, `REQUEST_CHANGES` or `COMMENT`; `commit_id` and each `line` come from `get-pr-file-lines.sh` (see "Posting Inline Comments"). With no inline comments, pass `comments: []`.
+   ```shell
+   jq -n --rawfile body <review-body-file> --rawfile c1 <comment-1-file> --rawfile c2 <comment-2-file> --arg sha <COMMIT_ID> \
+     '{commit_id: $sha, event: "COMMENT", body: $body, comments: [
+        {path: "<FILE_PATH_1>", line: <FILE_LINE_1>, side: "RIGHT", body: $c1},
+        {path: "<FILE_PATH_2>", line: <FILE_LINE_2>, side: "RIGHT", body: $c2}]}' \
+     > <review-json-file>
+   ```
+2. Post it bare, as the one write:
+   ```shell
+   gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/reviews --method POST --input <review-json-file>
+   ```
 
-The commands below, and the single-comment call under "Posting Inline Comments", remain alternatives.
-
-```shell
-# Submit review with approval
-gh pr review <PR_NUMBER_OR_URL> --approve --body-file <review-body-file>
-
-# Submit review requesting changes
-gh pr review <PR_NUMBER_OR_URL> --request-changes --body-file <review-body-file>
-
-# Submit review as comment
-gh pr review <PR_NUMBER_OR_URL> --comment --body-file <review-body-file>
-```
+GitHub rejects `APPROVE` and `REQUEST_CHANGES` on your own PR; use `COMMENT` there.
 
 For example, to approve PR #42, write this body file:
 ```markdown
@@ -288,24 +285,44 @@ None
 Great work! The code is clean and well-documented.
 ```
 
-then submit it:
+then build the payload and post it:
 ```shell
-gh pr review 42 --approve --body-file <review-body-file>
+jq -n --rawfile body <review-body-file> --arg sha <COMMIT_ID> \
+  '{commit_id: $sha, event: "APPROVE", body: $body, comments: []}' > <review-json-file>
+gh api repos/owner/repo/pulls/42/reviews --method POST --input <review-json-file>
 ```
 
 #### GitLab (merge requests)
 
-`glab` has no `--body-file`, and `-m "$(cat …)"` or `< file` on your command line would re-sandbox it. Post through the write helper, which reads the body file itself:
+`glab` has no `--body-file`, and `-m "$(cat …)"` or `< file` on your command line would re-sandbox it. Post the whole review through the batch helper, which reads the body files itself. Write a manifest with the **Write tool** (never build it in the shell), next to the body files:
 
-```shell
-~/.claude/skills/mn-review/scripts/post-mr-note.sh <MR_IID_OR_URL> <review-body-file> --resolvable=false
+```json
+{
+  "verdict": "APPROVE",
+  "head_sha": "<HEAD_SHA>",
+  "overview": "<review-body-file>",
+  "inline": [
+    {"file": "<FILE_PATH_1>", "line": 42, "body": "<comment-1-file>"},
+    {"file": "<FILE_PATH_2>", "line": "10:15", "body": "<comment-2-file>"},
+    {"file": "<FILE_PATH_3>", "old_line": 7, "body": "<comment-3-file>"}
+  ]
+}
 ```
 
-Always call it by that exact path: it is allow-listed in `settings.json` via the directory-wide skills rule and runs only after the skill's present-then-stop approval gate, so it posts without a per-command prompt, and it refuses any other spelling of its path. It takes an MR IID or MR URL (never a flag) and passes through only `--resolvable=false`, `--file`, `--line` and `--old-line`. Map the verdict:
+then post it:
 
-- `APPROVE`: post the overview as a non-resolvable note (`--resolvable=false`, so it cannot block a project that requires every thread resolved), then `glab mr approve <MR_IID_OR_URL>`.
-- `REQUEST_CHANGES`: post the overview without `--resolvable=false`. It opens a thread the author has to resolve, and its "Review Verdict" line carries the request (glab has no request-changes command).
-- `COMMENT`: a non-resolvable note, as for `APPROVE`, without the approval.
+```shell
+~/.claude/skills/mn-review/scripts/post-mr-review.sh <MR_IID_OR_URL> <manifest-file>
+```
+
+Always call it by that exact path: it is listed under `permissions.ask` in `settings.json` by its canonical path, so the whole review prompts me once, and it refuses any other spelling of its path. It takes an MR IID or MR URL (never a flag) and one manifest:
+
+- **`verdict`** picks the form. `APPROVE` posts the overview as a non-resolvable note (it cannot block a project that requires every thread resolved), then approves. `REQUEST_CHANGES` posts it as a thread the author has to resolve, whose "Review Verdict" line carries the request (glab has no request-changes command). `COMMENT` posts a non-resolvable note and does not approve.
+- **`head_sha`** is the full head SHA `get-pr-file-lines.sh` printed. It is required for `APPROVE` and recommended always: the helper refuses to post anything if the MR has moved past it, and the approval is pinned to it.
+- **`inline`** is optional: one entry per inline comment, with `line` (`N` or `A:B`) or `old_line` (`N`, a removed line), never both. Inline notes stay resolvable threads, so the author can resolve each one.
+- **Body files** must be non-empty regular files under `/tmp` (the session scratchpad or `/tmp/claude`), never symlinks.
+
+The helper validates the whole manifest before posting anything, and on any error posts nothing. If a step fails mid-batch (glab's `--file` / `--line` flags are experimental, present in glab 1.119), it stops and lists what was posted and what was not: tell me, and never re-run the same manifest, which would post its notes twice.
 
 ### Posting Inline Comments on Specific Lines
 
@@ -328,24 +345,9 @@ Always call it by that exact path: it is allow-listed in `settings.json` via the
 
 3. **Write the comment text with the Write tool** to a scratch file (the session scratchpad directory if the system prompt lists one, otherwise `/tmp/claude/comment-body.md`); inline text would break on backticks or apostrophes, and building it with `$(…)` would re-sandbox the CLI.
 
-4. **Post it** with the verified line number:
-
-   **GitHub**
-   ```shell
-   gh api repos/<OWNER>/<REPO>/pulls/<PR_NUMBER>/comments \
-     --method POST \
-     --field body=@<comment-body-file> \
-     --field commit_id=<COMMIT_ID> \
-     --field path=<FILE_PATH> \
-     --field line=<FILE_LINE> \
-     --field side=RIGHT
-   ```
-
-   **GitLab**
-   ```shell
-   ~/.claude/skills/mn-review/scripts/post-mr-note.sh <MR_IID_OR_URL> <comment-body-file> --file <FILE_PATH> --line <FILE_LINE>
-   ```
-   `--line a:b` covers a range and `--old-line <n>` (instead of `--line`) targets a removed line. Inline findings stay resolvable threads (no `--resolvable=false`), so the author can resolve each one. glab's `--file` / `--line` flags are experimental (present in glab 1.119); if yours rejects them, fold the file:line references into the overview note instead.
+4. **Add it to the one review** with the verified line number; never post it on its own (see "Submitting the Review"):
+   - **GitHub:** an entry `{path: "<FILE_PATH>", line: <FILE_LINE>, side: "RIGHT", body: $cN}` in the payload's `comments` array, with `--rawfile cN <comment-body-file>`.
+   - **GitLab:** an entry `{"file": "<FILE_PATH>", "line": <FILE_LINE>, "body": "<comment-body-file>"}` in the manifest's `inline` array; `"line": "A:B"` covers a range and `"old_line": N` (instead of `line`) targets a removed line. If your glab rejects `--file` / `--line`, fold the file:line references into the overview note instead.
 
 #### Example
 
@@ -361,16 +363,14 @@ To comment on the `required: true` line of `.github/workflows/ci.yml` in PR #42:
 # → line 24, commit_id abc123…
 ```
 
-Then write the comment body to a scratch file and post it:
+Then write the comment body to a scratch file and add it to the review payload, which posts with the overview in one call:
 
 ```shell
-gh api repos/owner/repo/pulls/42/comments \
-  --method POST \
-  --field body=@/tmp/claude/comment-body.md \
-  --field commit_id=abc123… \
-  --field path=.github/workflows/ci.yml \
-  --field line=24 \
-  --field side=RIGHT
+jq -n --rawfile body /tmp/claude/review-body.md --rawfile c1 /tmp/claude/comment-body.md --arg sha abc123… \
+  '{commit_id: $sha, event: "COMMENT", body: $body, comments: [
+     {path: ".github/workflows/ci.yml", line: 24, side: "RIGHT", body: $c1}]}' \
+  > /tmp/claude/review.json
+gh api repos/owner/repo/pulls/42/reviews --method POST --input /tmp/claude/review.json
 ```
 
 ### Multi-target driver mode
@@ -389,7 +389,7 @@ When `$ARGUMENTS` holds two or more targets, the pre-fetch scripts above print `
 
    Then **STOP and wait for my approval, per target**. "Approve 1 and 3, revise 2: …" is a normal answer.
 
-3. **Post yourself, from bodies you wrote.** For each approved target, write the approved overview body and each approved inline comment to scratch files yourself (Write tool), with my edits applied, then post exactly them, following the Submitting / Posting sections for its forge. Reviewers never post. The body files are the contract; never rewrite an approved text, and never copy a `### Private context (not for posting)` section into one. A revise request goes back to that reviewer with SendMessage, and so does a re-review (the reviewer re-runs the scripts and reviews the fresh output).
+3. **Post yourself, from bodies you wrote.** For each approved target, write the approved overview body and each approved inline comment to scratch files yourself (Write tool), with my edits applied, then post exactly them, following the Submitting / Posting sections for its forge: one review POST (GitHub) or one `post-mr-review.sh` run (GitLab) per target, so each approved target costs me one prompt. Reviewers never post. The body files are the contract; never rewrite an approved text, and never copy a `### Private context (not for posting)` section into one. A revise request goes back to that reviewer with SendMessage, and so does a re-review (the reviewer re-runs the scripts and reviews the fresh output).
 
 4. **Report** one line per target: posted (with the review URL when the CLI prints one), skipped, or blocked, and why.
 
