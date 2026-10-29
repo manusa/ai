@@ -177,9 +177,11 @@ BEGIN { host = ENVIRON["HOST"]; base = ENVIRON["BASE"] }
 # and KEY-N name another project's issues. A tag counts only as "<details>" or
 # "<details " outside a backtick code span or fence; a block still open at the
 # end of the input is kept, so a stray tag never hides the rest of the body. A
-# backtick run whose closer lies past the next </details>, or for an inline span
-# (one or two backticks) past a blank line, stays literal, as in CommonMark, so
-# a stray backtick in release notes cannot hide the block's end.
+# backtick run stays literal when its closer lies past a blank line (inline
+# spans of one or two backticks only, which CommonMark never lets cross one) or,
+# inside a block, past the block's next </details>, so a stray backtick in
+# release notes cannot hide the block's end. Outside a block, a quoted
+# `</details>` is plain code.
 # shellcheck disable=SC2016
 MN_DETAILS_AWK='
 function put(t) { if (depth) buf = buf t; else out = out t }
@@ -198,7 +200,7 @@ END {
             while (j <= n && substr(s, j, 1) == "`") j++
             run = substr(s, i, j - i)
             k = index(substr(s, j), run)
-            limit = index(substr(ls, j), "</details>")
+            limit = depth ? index(substr(ls, j), "</details>") : 0
             if (length(run) < 3 && match(substr(s, j), /\n[ \t]*\n/) && (!limit || RSTART < limit)) limit = RSTART
             if (k && limit && k > limit) k = 0
             e = k ? j + k - 1 + length(run) : j
