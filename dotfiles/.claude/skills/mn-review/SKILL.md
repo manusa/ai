@@ -322,11 +322,11 @@ Always call it by that exact path: it is listed under `permissions.ask` in `sett
 
 - **The verdict argument** puts the verdict in front of me at the prompt. It must equal the manifest's `verdict`, or nothing is posted.
 - **`verdict`** picks the form. `APPROVE` posts the overview as a non-resolvable note (it cannot block a project that requires every thread resolved), then approves. `REQUEST_CHANGES` posts it as a thread the author has to resolve, whose "Review Verdict" line carries the request (glab sets GitLab's "changes requested" reviewer state only when publishing draft notes, which this helper does not use). `COMMENT` posts a non-resolvable note and does not approve.
-- **`head_sha`** is the full head SHA `get-pr-file-lines.sh` printed. It is required for `APPROVE` and whenever `inline` has entries (glab places every inline note against the MR's latest diff), and recommended always: the helper refuses to post anything if the MR has moved past it, and the approval is pinned to it.
-- **`inline`** is optional: one entry per inline comment, with `line` (`N` or `A:B`, positive, `A` <= `B`) or `old_line` (a positive `N`, a removed line), never both; with neither, it is a file-level note. Inline notes stay resolvable threads, so the author can resolve each one.
+- **`head_sha`** is always required: the full head SHA `get-pr-file-lines.sh` printed. Before any write the helper reads the MR and refuses to post anything unless it is still at that head, so a wrong MR, a wrong host or a moved MR posts nothing. glab places every inline note against the MR's latest diff, and the approval is pinned to the same SHA.
+- **`inline`** is optional: one entry per inline comment, with `line` (`N` or `A:B`, positive, `A` <= `B`) or `old_line` (a positive `N`, a removed line), never both. With neither, glab anchors the note to the first line of that file's diff (and errors if that file's diff is empty), so prefer a line. Inline notes stay resolvable threads, so the author can resolve each one.
 - **Body files** must be non-empty regular files under `/tmp` (the session scratchpad or `/tmp/claude`), never symlinks.
 
-The helper validates the whole manifest before posting anything, and on any error posts nothing. If a step fails mid-batch (glab's `--file` / `--line` flags are experimental, present in glab 1.119), it stops and lists what was posted and what was not: tell me, and never re-run the same manifest, which would post its notes twice.
+The helper validates the whole manifest before posting anything, and on any error, a failing `jq` included, posts nothing. If a step fails mid-batch (glab's `--file` / `--line` flags are experimental, present in glab 1.119), it stops and lists what was posted and what was not. Then stop too: report that list to me and post nothing else. Never re-run the manifest, and never post a second overview.
 
 ### Posting Inline Comments on Specific Lines
 
@@ -338,7 +338,7 @@ The helper validates the whole manifest before posting anything, and on any erro
    ```shell
    ~/.claude/skills/mn-review/scripts/get-pr-file-lines.sh <PR_OR_MR> <FILE_PATH> ['<PATTERN>']
    ```
-   It prints the forge, the head SHA (on GitHub the `commit_id` to comment against), then each added (`+`) and context (` `) line as `<file line>\t<marker><content>`. Only those lines can take an inline comment. The optional `<PATTERN>` (extended regex) filters by content. For a change in another repository, pass the full URL.
+   It prints the forge, the head SHA (on GitHub the `commit_id` to comment against, on GitLab the manifest's `head_sha`), then each added (`+`) and context (` `) line as `<file line>\t<marker><content>`. On GitLab it also prints each removed (`-`) line as `old:<old-file line>\t-<content>`: that number goes in an `old_line` entry. Only listed lines can take an inline comment. The optional `<PATTERN>` (extended regex) filters by content. For a change in another repository, pass the full URL.
 
    **Don't** reconstruct this with `gh pr diff … | awk | grep` or `glab mr diff … | …`: the CLIs are sandbox-excluded so they can read their keyring tokens, but a pipe (or `$(…)`, redirect, `&&`) anywhere in the command makes them run sandboxed, and they fail. That's why the parsing lives in the script.
 
@@ -351,7 +351,7 @@ The helper validates the whole manifest before posting anything, and on any erro
 
 4. **Add it to the one review** with the verified line number; never post it on its own (see "Submitting the Review"):
    - **GitHub:** an entry `{path: "<FILE_PATH>", line: <FILE_LINE>, side: "RIGHT", body: $cN}` in the payload's `comments` array, with `--rawfile cN <comment-body-file>`.
-   - **GitLab:** an entry `{"file": "<FILE_PATH>", "line": <FILE_LINE>, "body": "<comment-body-file>"}` in the manifest's `inline` array; `"line": "A:B"` covers a range and `"old_line": N` (instead of `line`) targets a removed line. If your glab rejects `--file` / `--line`, fold the file:line references into the overview note instead.
+   - **GitLab:** an entry `{"file": "<FILE_PATH>", "line": <FILE_LINE>, "body": "<comment-body-file>"}` in the manifest's `inline` array; `"line": "A:B"` covers a range and `"old_line": N` (instead of `line`, with the `old:N` number the script printed) targets a removed line. Inline notes need glab 1.119 or later; if `glab --version` is older, fold the file:line references into the overview body before you post, and send a manifest with no `inline` entries.
 
 #### Example
 

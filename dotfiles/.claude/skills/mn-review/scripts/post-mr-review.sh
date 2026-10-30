@@ -7,7 +7,7 @@
 # The manifest (written with the Write tool, never built in the shell):
 #   {
 #     "verdict": "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
-#     "head_sha": "<the full reviewed head SHA; required for APPROVE and with inline notes>",
+#     "head_sha": "<the full reviewed head SHA; always required>",
 #     "overview": "<overview body file>",
 #     "inline": [
 #       {"file": "<path>", "line": 42 | "10:15", "body": "<body file>"},
@@ -18,11 +18,12 @@
 # VERDICT repeats the manifest's, so the one prompt shows it; a mismatch posts
 # nothing. The verdict picks the overview's form: REQUEST_CHANGES opens a
 # resolvable thread, the others post a non-resolvable note. Inline notes stay
-# resolvable; one without line or old_line is a file-level note.
-# With head_sha, the MR head is checked before anything is posted, and the
+# resolvable; one without line or old_line lands on the first line of that
+# file's diff (glab anchors it there, and errors if that diff is empty).
+# The MR head is checked against head_sha before anything is posted, and the
 # approval passes --sha too. The whole manifest is validated before anything is
-# posted; on a failure mid-batch the script stops and reports what was and was
-# not posted.
+# posted, and a failing jq posts nothing; on a failure mid-batch the script
+# stops and reports what was and was not posted.
 
 . "$(dirname "$0")/lib.sh"
 
@@ -59,11 +60,12 @@ esac
 [ "$(mn_forge "$RAW_TARGET")" = gitlab ] || die "'$RAW_TARGET' is not a GitLab merge request (its URL or the cwd origin points at another forge)"
 MR=$(mn_id "$RAW_TARGET")
 REPO_FLAG=()
-re_url='^https?://([^/[:space:]]+)/([^[:space:]]+)/-/merge_requests/([0-9]+)/?$'
+re_url='^(https?)://([^/[:space:]]+)/([^[:space:]]+)/-/merge_requests/([0-9]+)/?$'
 if [[ "$MR" =~ $re_url ]]; then
-    # -R keeps glab on the MR's host when the cwd is not a GitLab checkout.
-    REPO_FLAG=(-R "${BASH_REMATCH[1]}/${BASH_REMATCH[2]}")
-    MR=${BASH_REMATCH[3]}
+    # -R as a URL pins glab to the MR's host; a bare host/path would make glab
+    # guess, and it reads an unconfigured host as a gitlab.com group.
+    REPO_FLAG=(-R "${BASH_REMATCH[1]}://${BASH_REMATCH[2]}/${BASH_REMATCH[3]}")
+    MR=${BASH_REMATCH[4]}
 elif ! [[ "$MR" =~ ^[0-9]+$ ]]; then
     die "the merge request must be an IID or an MR URL, not '$RAW_TARGET'"
 fi
@@ -92,10 +94,7 @@ ERRORS=$(jq -r '
     if type != "object" then "the manifest is not a JSON object" else
         ((keys - ["verdict", "head_sha", "overview", "inline"])[] | "unknown key \(tojson)"),
         (if (.verdict | IN("APPROVE", "REQUEST_CHANGES", "COMMENT")) then empty else "verdict must be APPROVE, REQUEST_CHANGES or COMMENT" end),
-        (if .verdict == "APPROVE" and ((.head_sha | sha_ok) | not) then "an APPROVE verdict needs head_sha, the full 40-digit SHA of the reviewed head"
-         elif (.inline | type == "array" and length > 0) and ((.head_sha | sha_ok) | not) then "inline notes need head_sha, the full 40-digit SHA of the reviewed head (glab places them against the latest diff)"
-         elif has("head_sha") and ((.head_sha | sha_ok) | not) then "head_sha must be the full 40-digit SHA of the reviewed head"
-         else empty end),
+        (if (.head_sha | sha_ok) then empty else "head_sha must be the full 40-digit SHA of the reviewed head; it is checked against the MR before anything is posted" end),
         (if (.overview | path_ok) then empty else "overview must be the path of the overview body file, without a leading -, control characters or backslashes" end),
         (if has("inline") and (.inline | type) != "array" then "inline must be an array" else empty end),
         ((.inline // []) | if type == "array" then to_entries[] else empty end | .key as $i | .value |
@@ -108,28 +107,35 @@ ERRORS=$(jq -r '
                  elif has("old_line") and ((.old_line | tostring | test("^[1-9][0-9]*$")) | not) then "inline[\($i)]: old_line takes a positive N"
                  else empty end)
             end)
-    end' "$MANIFEST")
+    end' "$MANIFEST") || die "could not validate the manifest $MANIFEST (jq failed, see stderr above); nothing was posted"
 [ -z "$ERRORS" ] || die "invalid manifest $MANIFEST, nothing was posted:
 $ERRORS"
 
-VERDICT=$(jq -r .verdict "$MANIFEST")
+# Every extraction fails closed: an empty value from a failed jq would skip a check.
+VERDICT=$(jq -r .verdict "$MANIFEST") || die "could not read the verdict (jq failed); nothing was posted"
 [ "$VERDICT" = "$ARG_VERDICT" ] || die "the command line says $ARG_VERDICT but the manifest says $VERDICT; nothing was posted"
-HEAD_SHA=$(jq -r '.head_sha // ""' "$MANIFEST")
-OVERVIEW=$(jq -r .overview "$MANIFEST")
+HEAD_SHA=$(jq -r .head_sha "$MANIFEST") || die "could not read head_sha (jq failed); nothing was posted"
+[[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || die "head_sha '$HEAD_SHA' is not a full 40-digit SHA; nothing was posted"
+OVERVIEW=$(jq -r .overview "$MANIFEST") || die "could not read the overview path (jq failed); nothing was posted"
 body_ok "$OVERVIEW" || die "overview body file '$OVERVIEW' must be a non-empty regular file under /tmp; nothing was posted"
+INLINE_COUNT=$(jq '.inline // [] | length' "$MANIFEST") || die "could not count the inline notes (jq failed); nothing was posted"
 
 # One "file line-flag line body" row per inline note, in manifest order,
 # separated by \x1f: a tab is IFS whitespace, so read would merge the empty
 # fields of a file-level note and shift its body into the flag.
 INLINE=$(jq -r '(.inline // [])[]
     | [.file, (if has("line") then "--line" elif has("old_line") then "--old-line" else "" end),
-       ((.line // .old_line // "") | tostring), .body] | join("\u001f")' "$MANIFEST")
-while IFS=$'\x1f' read -r _ _ _ body; do
-    [ -n "$body" ] || continue
+       ((.line // .old_line // "") | tostring), .body] | join("\u001f")' "$MANIFEST") \
+    || die "could not read the inline notes (jq failed, see stderr above); nothing was posted"
+rows=0
+while IFS=$'\x1f' read -r file _ _ body; do
+    [ -n "$file" ] || continue
+    rows=$((rows + 1))
     body_ok "$body" || die "inline body file '$body' must be a non-empty regular file under /tmp; nothing was posted"
 done <<EOF
 $INLINE
 EOF
+[ "$rows" = "$INLINE_COUNT" ] || die "read $rows inline notes but the manifest has $INLINE_COUNT; nothing was posted"
 
 # STEPS describes each posting step, in the order the code below runs them, so
 # report_failure N can say what was and was not posted.
@@ -147,12 +153,11 @@ EOF
 [ "$VERDICT" = APPROVE ] && STEPS+=("approval at $HEAD_SHA")
 
 # A review of an older head would misplace its inline notes, and its approval
-# would fail after the notes were posted, so check the head before posting.
-if [ -n "$HEAD_SHA" ]; then
-    CURRENT=$(glab mr view "$MR" "${REPO_FLAG[@]}" --output json | jq -r '.sha // empty') \
-        || die "could not read the head of merge request $RAW_TARGET (see stderr above); nothing was posted"
-    [ "$CURRENT" = "$HEAD_SHA" ] || die "merge request $RAW_TARGET is at ${CURRENT:-an unknown head}, not the reviewed $HEAD_SHA; re-review it. Nothing was posted"
-fi
+# would fail after the notes were posted. This read is also the first contact
+# with the MR, so a wrong host or a wrong MR fails here, before any write.
+CURRENT=$(glab mr view "$MR" "${REPO_FLAG[@]}" --output json | jq -r '.sha // empty') \
+    || die "could not read the head of merge request $RAW_TARGET (see stderr above); nothing was posted"
+[ "$CURRENT" = "$HEAD_SHA" ] || die "merge request $RAW_TARGET is at ${CURRENT:-an unknown head}, not the reviewed $HEAD_SHA; re-review it. Nothing was posted"
 
 echo "Posting to merge request $RAW_TARGET (${#STEPS[@]} steps, verdict $VERDICT):"
 for s in "${STEPS[@]}"; do echo "  - $s"; done
