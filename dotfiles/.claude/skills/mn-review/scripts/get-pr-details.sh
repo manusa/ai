@@ -28,6 +28,7 @@ case "$(mn_forge "$TARGET")" in
     gitlab)
         echo "MODE: Merge request review (GitLab, glab)"
         echo ""
-        glab mr view "$ID" || echo "ERROR: 'glab mr view $ID' failed (exit $?). The stderr above distinguishes a missing/wrong MR from a network/VPN/auth failure; do not treat this as a confirmed 'not found'."
+        mn_glab_mr "$ID"
+        glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}" || echo "ERROR: 'glab mr view $ID' failed (exit $?). The stderr above distinguishes a missing/wrong MR from a network/VPN/auth failure; do not treat this as a confirmed 'not found'."
         ;;
 esac

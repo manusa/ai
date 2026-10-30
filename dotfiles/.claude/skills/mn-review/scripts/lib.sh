@@ -70,6 +70,19 @@ mn_id() {
     printf '%s' "$t"
 }
 
+# mn_glab_mr ID: sets MN_MR to the IID and, for an MR URL, MN_REPO_FLAG to
+# "-R <project URL>": glab reads a bare MR URL only inside a checkout of its
+# host, and a URL -R pins the host (see post-mr-review.sh).
+mn_glab_mr() {
+    local re='^(https?)://([^/[:space:]]+)/([^[:space:]]+)/-/merge_requests/([0-9]+)'
+    MN_MR="$1"
+    MN_REPO_FLAG=()
+    if [[ "$1" =~ $re ]]; then
+        MN_REPO_FLAG=(-R "${BASH_REMATCH[1]}://${BASH_REMATCH[2]}/${BASH_REMATCH[3]}")
+        MN_MR=${BASH_REMATCH[4]}
+    fi
+}
+
 # mn_cache_file FORGE ID: the changed-files cache, keyed by forge, cwd
 # repository and target so !42 and #42, or two checkouts, never share a file.
 mn_cache_file() {
@@ -91,7 +104,7 @@ mn_changed_files() {
     fi
     case "$forge" in
         github) files=$(gh pr view "$id" --json files --jq '.files[].path') || return $? ;;
-        gitlab) files=$(glab mr diff "$id" --raw | mn_diff_paths) || return $? ;;
+        gitlab) mn_glab_mr "$id"; files=$(glab mr diff "$MN_MR" "${MN_REPO_FLAG[@]}" --raw | mn_diff_paths) || return $? ;;
         *) return 1 ;;
     esac
     printf '%s\n' "$files" > "$cache" 2>/dev/null || true

@@ -27,5 +27,5 @@ fi
 ID=$(mn_id "$TARGET")
 case "$(mn_forge "$TARGET")" in
     github) gh pr diff "$ID" || echo "ERROR: 'gh pr diff $ID' failed (exit $?; see stderr above; this is a fetch failure, not a confirmed empty diff)" ;;
-    gitlab) glab mr diff "$ID" --raw || echo "ERROR: 'glab mr diff $ID --raw' failed (exit $?; see stderr above; this is a fetch failure, not a confirmed empty diff)" ;;
+    gitlab) mn_glab_mr "$ID"; glab mr diff "$MN_MR" "${MN_REPO_FLAG[@]}" --raw || echo "ERROR: 'glab mr diff $ID --raw' failed (exit $?; see stderr above; this is a fetch failure, not a confirmed empty diff)" ;;
 esac

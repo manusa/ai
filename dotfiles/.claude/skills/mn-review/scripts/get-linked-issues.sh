@@ -535,11 +535,8 @@ github_linked() {
 gitlab_linked() {
     local meta re re_branch web host path iid pid title body branch closing
     re='^https?://([^/]+)/(.+)/-/merge_requests/([0-9]+)'
-    if [[ "$ID" =~ $re ]]; then
-        meta=$(glab mr view "${BASH_REMATCH[3]}" -R "${BASH_REMATCH[1]}/${BASH_REMATCH[2]}" --output json) || return $?
-    else
-        meta=$(glab mr view "$ID" --output json) || return $?
-    fi
+    mn_glab_mr "$ID"
+    meta=$(glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}" --output json) || return $?
     web=$(printf '%s' "$meta" | jq -r .web_url)
     [[ "$web" =~ $re ]] || { echo "unexpected MR web_url '$web'" >&2; return 1; }
     host=${BASH_REMATCH[1]}

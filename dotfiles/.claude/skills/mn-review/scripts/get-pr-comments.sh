@@ -41,7 +41,8 @@ github_comments() {
 
 gitlab_comments() {
     local threads
-    threads=$(glab mr view "$ID" --comments --per-page 100 --output json | jq -r '
+    mn_glab_mr "$ID"
+    threads=$(glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}" --comments --per-page 100 --output json | jq -r '
         if has("Discussions") then . else error("glab mr view JSON carries no Discussions key") end
         | .sha as $head
         | .Discussions[] | select(any(.notes[]; .system == false))

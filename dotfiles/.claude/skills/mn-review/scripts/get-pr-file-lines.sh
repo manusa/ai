@@ -32,9 +32,10 @@ case "$(mn_forge "$TARGET")" in
         echo "commit_id: $head_sha"
         ;;
     gitlab)
-        head_sha=$(glab mr view "$ID" --output json --jq '.sha') \
+        mn_glab_mr "$ID"
+        head_sha=$(glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}" --output json --jq '.sha') \
             || { rc=$?; echo "ERROR: 'glab mr view $ID' failed (exit $rc; see stderr above)"; exit 1; }
-        diff=$(glab mr diff "$ID" --raw) \
+        diff=$(glab mr diff "$MN_MR" "${MN_REPO_FLAG[@]}" --raw) \
             || { rc=$?; echo "ERROR: 'glab mr diff $ID --raw' failed (exit $rc; see stderr above; this is a fetch failure, not a confirmed empty diff)"; exit 1; }
         echo "forge: gitlab"
         echo "head_sha: ${head_sha//\"/} (the manifest's head_sha; glab places inline notes against the latest diff version)"
