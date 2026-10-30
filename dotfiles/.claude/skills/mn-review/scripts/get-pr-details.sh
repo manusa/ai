@@ -3,12 +3,22 @@
 # URL), or the worktree status when no target is given. Several targets print
 # the driver banner instead (see lib.sh). A target's details open with a STATE
 # block read from the forge's JSON, the only source for its live state
-# (SKILL.md, Review method), then the prose view inside an untrusted-data fence.
-# Never exits non-zero.
-# Usage: get-pr-details.sh "<TARGETS>"
+# (SKILL.md, Review method), then the prose view inside an untrusted-data fence;
+# a second argument "state" prints the STATE block alone (the driver's state
+# column). Never exits non-zero.
+# Usage: get-pr-details.sh "<TARGETS>" [state]
 
 . "$(dirname "$0")/lib.sh"
+case "$2" in
+    ""|state) STATE_ONLY="$2" ;;
+    *) echo "ERROR: unknown mode '$2' (the only one is 'state'); nothing was fetched."; exit 0 ;;
+esac
 mn_begin "$1"
+
+if [ -z "$TARGET" ] && [ -n "$STATE_ONLY" ]; then
+    echo "STATE: n/a (local worktree review, no PR/MR)"
+    exit 0
+fi
 
 if [ -z "$TARGET" ]; then
     echo "MODE: Local worktree changes review"
@@ -21,10 +31,11 @@ if [ -z "$TARGET" ]; then
     exit 0
 fi
 
-# Each value is reduced to [A-Za-z0-9_.:+-], so the block holds no forge prose.
+# Each value is reduced to [A-Za-z0-9_.:+/-] (bot logins read app/<name>), so
+# the block holds no forge prose.
 # shellcheck disable=SC2016 # jq source, not shell expansion
 MN_STATE_JQ='
-def v: if . == null then "none" else tostring | gsub("[^A-Za-z0-9_.:+-]"; "?") end;
+def v: if . == null then "none" else tostring | gsub("[^A-Za-z0-9_.:+/-]"; "?") end;
 if type != "object" or .state == null then error("no state field") else . end
 '
 
@@ -57,6 +68,7 @@ case "$(mn_forge "$TARGET")" in
         print_state "gh pr view $ID --json" \
             '"state: \(.state | v)", "draft: \(.isDraft | v)", "merge state: \(.mergeStateStatus | v)", "head sha: \(.headRefOid | v)", "author: @\(.author.login | v)", "merged at: \(.mergedAt | v)"' \
             gh pr view "$ID" --json state,mergeStateStatus,isDraft,headRefOid,author,mergedAt
+        [ -z "$STATE_ONLY" ] || exit 0
         if view=$(gh pr view "$ID"); then
             mn_fenced "details of $TARGET" "$view"
         else
@@ -70,6 +82,7 @@ case "$(mn_forge "$TARGET")" in
         print_state "glab mr view $ID --output json" \
             '"state: \(.state | v)", "draft: \(.draft | v)", "merge status: \(.detailed_merge_status | v)", "has conflicts: \(.has_conflicts | v)", "head sha: \(.sha | v)", "author: @\(.author.username | v)", "merged at: \(.merged_at | v)"' \
             glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}" --output json
+        [ -z "$STATE_ONLY" ] || exit 0
         if view=$(glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}"); then
             mn_fenced "details of $TARGET" "$view"
         else

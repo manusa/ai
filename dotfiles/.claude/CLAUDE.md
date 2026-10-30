@@ -55,8 +55,9 @@ prompt and the user's read-only allowlist never fires. Minimize that friction:
   an explicit non-fork `subagent_type` (`general-purpose`), never `fork`, and never to an
   agent that wrote the change or proposed its design; its brief carries the target, the
   files and the method, not the spawner's conclusions. Continuation work, such as shipping
-  a change with `mn-pr`, goes to a **fork** (`subagent_type: fork`) of the session that
-  did the work; continuing that same agent (SendMessage) is fine.
+  a change with `mn-pr`, never goes to a fresh agent: continue the agent that did the
+  work (SendMessage), or, for your own work, dispatch a **fork** (`subagent_type: fork`)
+  of yourself.
 
 ## Sandbox: GitHub commands are excluded from it (keyring auth); writes are gated
 
