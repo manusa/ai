@@ -7,7 +7,7 @@
 # The manifest (written with the Write tool, never built in the shell):
 #   {
 #     "verdict": "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
-#     "head_sha": "<the full reviewed head SHA; required for APPROVE>",
+#     "head_sha": "<the full reviewed head SHA; required for APPROVE and with inline notes>",
 #     "overview": "<overview body file>",
 #     "inline": [
 #       {"file": "<path>", "line": 42 | "10:15", "body": "<body file>"},
@@ -86,11 +86,14 @@ jq -e . "$MANIFEST" >/dev/null 2>&1 || die "the manifest $MANIFEST is not valid 
 
 ERRORS=$(jq -r '
     def sha_ok: type == "string" and test("^[0-9a-f]{40}$");
-    def path_ok: type == "string" and length > 0 and (test("^-") | not) and (test("[\\t\\n\\r\\\\\u001f]") | not);
+    def path_ok: type == "string" and length > 0 and (test("^-") | not) and (test("[[:cntrl:]\\\\]") | not);
+    def line_ok: tostring | test("^[1-9][0-9]*(:[1-9][0-9]*)?$")
+        and (split(":") | length == 1 or ((.[0] | tonumber) <= (.[1] | tonumber)));
     if type != "object" then "the manifest is not a JSON object" else
         ((keys - ["verdict", "head_sha", "overview", "inline"])[] | "unknown key \(tojson)"),
         (if (.verdict | IN("APPROVE", "REQUEST_CHANGES", "COMMENT")) then empty else "verdict must be APPROVE, REQUEST_CHANGES or COMMENT" end),
         (if .verdict == "APPROVE" and ((.head_sha | sha_ok) | not) then "an APPROVE verdict needs head_sha, the full 40-digit SHA of the reviewed head"
+         elif (.inline | type == "array" and length > 0) and ((.head_sha | sha_ok) | not) then "inline notes need head_sha, the full 40-digit SHA of the reviewed head (glab places them against the latest diff)"
          elif has("head_sha") and ((.head_sha | sha_ok) | not) then "head_sha must be the full 40-digit SHA of the reviewed head"
          else empty end),
         (if (.overview | path_ok) then empty else "overview must be the path of the overview body file, without a leading -, control characters or backslashes" end),
@@ -101,8 +104,8 @@ ERRORS=$(jq -r '
                 (if (.file | path_ok) then empty else "inline[\($i)]: file must be a path without a leading -, control characters or backslashes" end),
                 (if (.body | path_ok) then empty else "inline[\($i)]: body must be the path of its body file, without a leading -, control characters or backslashes" end),
                 (if has("line") and has("old_line") then "inline[\($i)]: line and old_line are exclusive"
-                 elif has("line") and ((.line | tostring | test("^[0-9]+(:[0-9]+)?$")) | not) then "inline[\($i)]: line takes N or A:B"
-                 elif has("old_line") and ((.old_line | tostring | test("^[0-9]+$")) | not) then "inline[\($i)]: old_line takes N"
+                 elif has("line") and ((.line | line_ok) | not) then "inline[\($i)]: line takes N or A:B, positive, with A <= B"
+                 elif has("old_line") and ((.old_line | tostring | test("^[1-9][0-9]*$")) | not) then "inline[\($i)]: old_line takes a positive N"
                  else empty end)
             end)
     end' "$MANIFEST")
@@ -128,7 +131,8 @@ done <<EOF
 $INLINE
 EOF
 
-# STEPS holds one description per posting step, in order; post_step N runs it.
+# STEPS describes each posting step, in the order the code below runs them, so
+# report_failure N can say what was and was not posted.
 STEPS=()
 case "$VERDICT" in
     REQUEST_CHANGES) STEPS+=("overview note (resolvable thread) from $OVERVIEW") ;;
