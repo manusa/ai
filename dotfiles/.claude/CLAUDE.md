@@ -68,14 +68,24 @@ Net effect for read-only review:
   `allow` rule is what makes them prompt-free; without one they'd prompt.)
 - **Every skill script that calls `gh` or `glab` needs its own `excludedCommands` entry** —
   skill `!`-prefetch runs sandboxed like any Bash call, and `gh` then fails. Keep such
-  scripts **read-only**: `Bash(~/.claude/skills/:*)` allows them without a prompt, so
-  a script that commits or posts would bypass the `ask` gates below. The one writing
-  script, `mn-review/scripts/post-mr-note.sh` (glab has no `--body-file`, so the MR
-  note body is read inside the excluded script), is listed in `permissions.ask` by its
-  own path: `ask` beats `allow`, so it prompts like `glab mr note` itself. The ask rule
-  is one literal spelling, while the allow rule and the exclusion are directory-wide,
-  so the script refuses to run under any other spelling of its path
-  (`scripts/./…`, `scripts//…`).
+  scripts **read-only**: `Bash(~/.claude/skills/:*)` allows them without a prompt, so a
+  script that commits or posts would bypass the `ask` gates below. The one writing
+  script, `mn-review/scripts/post-mr-review.sh`, posts a whole approved review to a
+  GitLab MR in one run: the overview note, every inline note and the approval (glab has
+  no `--body-file`, so the bodies are read inside the excluded script). It is listed in
+  `permissions.ask` by its own path: `ask` beats `allow`, so an approved review prompts
+  me **once**, like the single `gh api …/reviews` POST on GitHub. The ask rule is one
+  literal spelling, while the allow rule and the exclusion are directory-wide, so the
+  script refuses to run under any other spelling of its path (`scripts/./…`,
+  `scripts//…`). It posts only body files under `/tmp` and never a symlink, so a
+  manifest can't point straight at an arbitrary file; that checks the path, not the
+  content (a copy or hard link in `/tmp` still passes), so the review I approved in the
+  conversation is the real gate; the one prompt shows the target and the verdict. Gate any
+  new writing skill script the same way.
+- **Jira reads go through a skill script too.** The linked-issues pre-fetch and
+  `mn-review/scripts/get-jira-issue.sh` run the `jira` CLI unsandboxed through the same
+  exclusion, prompt-free. An agent-run `jira issue view` runs sandboxed, can't reach the
+  Jira host, and prompts on the unsandboxed retry, so the review never runs it directly.
 - Everything else still runs sandboxed and auto-approves as before.
 
 Writes stay gated regardless — excluded commands still pass through `ask`/`deny`.
@@ -162,7 +172,7 @@ allow-listed** — it resolves into the `NO_PROXY` internal ranges, so the proxy
 tunnel it. In `excludedCommands` it runs unsandboxed and the real Red Hat CA (trusted
 on the machine) verifies. Read-only subcommands (`glab mr view`/`list`/`diff`,
 `glab issue view`/`list`, `glab repo view`, `glab ci view`/`list`, `glab auth status`)
-are allow-listed → prompt-free; mutating ones (`glab mr create`/`merge`,
+are allow-listed → prompt-free; mutating ones (`glab mr create`/`merge`/`note`/`approve`,
 `glab issue create`, `glab api`, `glab config set`, …) stay in `ask`. **Don't reach
 for `dangerouslyDisableSandbox` on `glab`** — the exclusion handles it, prompt-free.
 Note `gitlab.cee.redhat.com` is reachable **only over the Red Hat VPN**; when the VPN

@@ -483,7 +483,7 @@ report() {
                     continue
                 fi
                 if [ "$jira_count" -ge "$MAX_FETCH" ]; then
-                    not_read "$id" "over the fetch cap of $MAX_FETCH tickets" "Read it: jira issue view $id --plain --comments 100"
+                    not_read "$id" "over the fetch cap of $MAX_FETCH tickets" "Read it: ~/.claude/skills/mn-review/scripts/get-jira-issue.sh $id"
                     continue
                 fi
                 jira_count=$((jira_count + 1))
