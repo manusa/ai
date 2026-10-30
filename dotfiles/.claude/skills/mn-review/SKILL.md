@@ -60,7 +60,7 @@ Your task is to help me review code changes. The target decides the mode:
 When asked to review again within the same session (e.g., after the author has pushed fixes):
 
 1. **Ignore all pre-fetched context above**; it was injected at initial invocation and is now stale.
-2. **Re-fetch fresh data** by running these commands via Bash (replace `<TARGET>` with the PR/MR number or URL from the initial review; the scripts pick `gh` or `glab` themselves):
+2. **Re-fetch fresh data** by running these commands via Bash (replace `<TARGET>` with the PR/MR number or URL from the initial review; the scripts pick `gh` or `glab` themselves). Quote a `#N` or `!N` target (`'#12'`), because in zsh an unquoted `#` starts a comment:
    - `~/.claude/skills/mn-review/scripts/get-pr-details.sh <TARGET>`
    - `~/.claude/skills/mn-review/scripts/get-pr-files.sh <TARGET>`
    - `~/.claude/skills/mn-review/scripts/get-pr-diff.sh <TARGET>`
