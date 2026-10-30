@@ -353,7 +353,7 @@ fetch_github() {
 # fetch_gitlab HOST PATH IID: the issue with its non-system notes. -R with the
 # host keeps glab off gitlab.com when the cwd is not a GitLab checkout.
 fetch_gitlab() {
-    local json rendered
+    local json rendered conf
     json=$(glab issue view "$3" -R "$1/$2" --comments --per-page 100 --output json) \
         || { FETCH_ERR="'glab issue view $3 -R $1/$2' failed (exit $?; see stderr above; a fetch failure, not a confirmed missing issue)"; return 1; }
     rendered=$(printf '%s' "$json" | jq -r '
@@ -362,6 +362,17 @@ fetch_gitlab() {
           ((.Notes // []) | map(select(.system == false)) | if length == 0 then "(none)" else (.[] | "--- @\(.author.username) (\(.created_at)):\n\(.body)\n") end)') \
         || { FETCH_ERR="the issue JSON from 'glab issue view $3 -R $1/$2' could not be rendered (jq exit $?; see stderr above)"; return 1; }
     gitlab_visibility "$1" "$2"
+    # A confidential issue (an embargoed security issue in a public project, say)
+    # is never public, whatever its project's visibility.
+    conf=$(printf '%s' "$json" | jq -r 'if has("confidential") then (.confidential | tostring) else "missing" end' 2>/dev/null)
+    if [ "$conf" != true ] && [ "$conf" != false ]; then
+        conf=$(glab api "projects/${2//\//%2F}/issues/$3" --hostname "$1" 2>/dev/null | jq -r 'if has("confidential") then (.confidential | tostring) else "unknown" end' 2>/dev/null)
+    fi
+    case "$conf" in
+        false) ;;
+        true) VIS="$VIS, confidential issue" ;;
+        *) VIS="$VIS, confidentiality unknown" ;;
+    esac
     fence_open "$1/$2#$3" "$VIS"
     printf '%s\n' "$rendered"
     fence_close "$1/$2#$3"
@@ -395,9 +406,10 @@ report() {
     echo "MODE: $1"
     echo ""
     if [ -n "$TARGET_VIS" ]; then
-        # Fail safe: a target whose visibility could not be read counts as public.
+        # Fail safe: only a private target skips the warning. An internal one is
+        # readable by every user of the instance, and an unread one may be public.
         case "$TARGET_VIS" in
-            private|internal) echo "Target visibility: $TARGET_VIS." ;;
+            private) echo "Target visibility: $TARGET_VIS." ;;
             *) echo "Target visibility: $TARGET_VIS. A posted review is public, or must be treated as public: name any reference not tagged 'visibility: public', never quote or summarize it." ;;
         esac
         echo ""
