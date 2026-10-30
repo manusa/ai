@@ -107,7 +107,12 @@ ERRORS=$(jq -r '
                  elif has("old_line") and ((.old_line | tostring | test("^[1-9][0-9]*$")) | not) then "inline[\($i)]: old_line takes a positive N"
                  else empty end)
             end)
-    end' "$MANIFEST") || die "could not validate the manifest $MANIFEST (jq failed, see stderr above); nothing was posted"
+    end, "OK"' "$MANIFEST") || die "could not validate the manifest $MANIFEST (jq failed, see stderr above); nothing was posted"
+# The validator ends with an OK line, so a jq that exits 0 without running it
+# (no output, or cut short) cannot pass for "no errors".
+[ "${ERRORS##*$'\n'}" = OK ] || die "the manifest validator did not finish (no OK line from jq); nothing was posted"
+ERRORS=${ERRORS%OK}
+ERRORS=${ERRORS%$'\n'}
 [ -z "$ERRORS" ] || die "invalid manifest $MANIFEST, nothing was posted:
 $ERRORS"
 
@@ -151,6 +156,18 @@ done <<EOF
 $INLINE
 EOF
 [ "$VERDICT" = APPROVE ] && STEPS+=("approval at $HEAD_SHA")
+
+# Inline notes need glab 1.119 or later (--file/--line); an older glab would
+# reject them after the overview had posted, so refuse it before any contact.
+if [ "$INLINE_COUNT" -gt 0 ]; then
+    GLAB_VERSION=$(glab --version 2>/dev/null | head -n 1)
+    re_ver='([0-9]+)\.([0-9]+)'
+    [[ "$GLAB_VERSION" =~ $re_ver ]] \
+        || die "could not read the glab version ('$GLAB_VERSION'); inline notes need glab 1.119 or later. Nothing was posted"
+    if [ "${BASH_REMATCH[1]}" -lt 1 ] || { [ "${BASH_REMATCH[1]}" -eq 1 ] && [ "${BASH_REMATCH[2]}" -lt 119 ]; }; then
+        die "glab ${BASH_REMATCH[1]}.${BASH_REMATCH[2]} is older than 1.119, which inline notes need; fold the file:line references into the overview and post a manifest with no inline notes. Nothing was posted"
+    fi
+fi
 
 # A review of an older head would misplace its inline notes, and its approval
 # would fail after the notes were posted. This read is also the first contact

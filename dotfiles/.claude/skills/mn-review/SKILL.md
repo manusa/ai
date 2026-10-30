@@ -326,7 +326,7 @@ Always call it by that exact path: it is listed under `permissions.ask` in `sett
 - **`inline`** is optional: one entry per inline comment, with `line` (`N` or `A:B`, positive, `A` <= `B`) or `old_line` (a positive `N`, a removed line), never both. With neither, glab anchors the note to the first line of that file's diff (and errors if that file's diff is empty), so prefer a line. Inline notes stay resolvable threads, so the author can resolve each one.
 - **Body files** must be non-empty regular files under `/tmp` (the session scratchpad or `/tmp/claude`), never symlinks.
 
-The helper validates the whole manifest before posting anything, and on any error, a failing `jq` included, posts nothing. If a step fails mid-batch (glab's `--file` / `--line` flags are experimental, present in glab 1.119), it stops and lists what was posted and what was not. Then stop too: report that list to me and post nothing else. Never re-run the manifest, and never post a second overview.
+The helper validates the whole manifest before posting anything, and on any error, a failing `jq` or a glab too old for inline notes included, posts nothing. If a step fails mid-batch (glab's `--file` / `--line` flags are experimental, present in glab 1.119), it stops and lists what was posted and what was not. Then stop too: report that list to me and post nothing else. Never re-run the manifest, and never post a second overview.
 
 ### Posting Inline Comments on Specific Lines
 
@@ -351,7 +351,7 @@ The helper validates the whole manifest before posting anything, and on any erro
 
 4. **Add it to the one review** with the verified line number; never post it on its own (see "Submitting the Review"):
    - **GitHub:** an entry `{path: "<FILE_PATH>", line: <FILE_LINE>, side: "RIGHT", body: $cN}` in the payload's `comments` array, with `--rawfile cN <comment-body-file>`.
-   - **GitLab:** an entry `{"file": "<FILE_PATH>", "line": <FILE_LINE>, "body": "<comment-body-file>"}` in the manifest's `inline` array; `"line": "A:B"` covers a range and `"old_line": N` (instead of `line`, with the `old:N` number the script printed) targets a removed line. Inline notes need glab 1.119 or later; if `glab --version` is older, fold the file:line references into the overview body before you post, and send a manifest with no `inline` entries.
+   - **GitLab:** an entry `{"file": "<FILE_PATH>", "line": <FILE_LINE>, "body": "<comment-body-file>"}` in the manifest's `inline` array; `"line": "A:B"` covers a range and `"old_line": N` (instead of `line`, with the `old:N` number the script printed) targets a removed line. Inline notes need glab 1.119 or later, and `post-mr-review.sh` refuses an older glab before posting anything. If it does, fold the file:line references into the overview body and post again with a manifest that has no `inline` entries: nothing was posted, so this is still the one review.
 
 #### Example
 
