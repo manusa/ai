@@ -77,16 +77,18 @@ Net effect for read-only review:
   me **once**, like the single `gh api …/reviews` POST on GitHub. The ask rule is one
   literal spelling, while the allow rule and the exclusion are directory-wide, so the
   script refuses to run under any other spelling of its path (`scripts/./…`,
-  `scripts//…`). It also posts only body files under `/tmp` and never a symlink, so a
-  manifest can't post an arbitrary file. Gate any new writing skill script the same way.
+  `scripts//…`). It posts only body files under `/tmp` and never a symlink, so a
+  manifest can't point straight at an arbitrary file; that checks the path, not the
+  content (a copy or hard link in `/tmp` still passes), so the review I approved in the
+  conversation is the real gate; the one prompt shows the target and the verdict. Gate any
+  new writing skill script the same way.
 - **Jira reads go through a skill script too.** The linked-issues pre-fetch and
   `mn-review/scripts/get-jira-issue.sh` run the `jira` CLI unsandboxed through the same
   exclusion, prompt-free. An agent-run `jira issue view` runs sandboxed, can't reach the
   Jira host, and prompts on the unsandboxed retry, so the review never runs it directly.
 - Everything else still runs sandboxed and auto-approves as before.
 
-Writes stay gated regardless, with one deliberate exception: `glab mr approve` is
-allow-listed. Excluded commands still pass through `ask`/`deny`.
+Writes stay gated regardless — excluded commands still pass through `ask`/`deny`.
 Every mutating `gh`/`git` command — `gh pr review`/`merge`/`comment`/`create`/
 `close`/`edit`, the `gh issue` writes, `gh api`, `gh release`/`repo`/`secret`/
 `workflow` writes, and `git commit`/`push`/`merge`/`rebase`/`reset`/`revert`/
@@ -170,9 +172,8 @@ allow-listed** — it resolves into the `NO_PROXY` internal ranges, so the proxy
 tunnel it. In `excludedCommands` it runs unsandboxed and the real Red Hat CA (trusted
 on the machine) verifies. Read-only subcommands (`glab mr view`/`list`/`diff`,
 `glab issue view`/`list`, `glab repo view`, `glab ci view`/`list`, `glab auth status`)
-are allow-listed → prompt-free; mutating ones (`glab mr create`/`merge`/`note`,
-`glab issue create`, `glab api`, `glab config set`, …) stay in `ask`, except
-`glab mr approve`, which is allow-listed. **Don't reach
+are allow-listed → prompt-free; mutating ones (`glab mr create`/`merge`/`note`/`approve`,
+`glab issue create`, `glab api`, `glab config set`, …) stay in `ask`. **Don't reach
 for `dangerouslyDisableSandbox` on `glab`** — the exclusion handles it, prompt-free.
 Note `gitlab.cee.redhat.com` is reachable **only over the Red Hat VPN**; when the VPN
 drops (it does, intermittently) `glab`/`git` fail with `could not resolve host` /

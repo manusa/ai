@@ -3,7 +3,7 @@
 # overview note, every inline note and, for an APPROVE verdict, the approval.
 # A WRITE: listed under `ask` in settings.json by its canonical path, so the
 # whole review costs one prompt.
-# Usage: post-mr-review.sh <MR_IID_OR_URL> <MANIFEST_JSON>
+# Usage: post-mr-review.sh <MR_IID_OR_URL> <VERDICT> <MANIFEST_JSON>
 # The manifest (written with the Write tool, never built in the shell):
 #   {
 #     "verdict": "APPROVE" | "REQUEST_CHANGES" | "COMMENT",
@@ -11,11 +11,14 @@
 #     "overview": "<overview body file>",
 #     "inline": [
 #       {"file": "<path>", "line": 42 | "10:15", "body": "<body file>"},
-#       {"file": "<path>", "old_line": 7, "body": "<body file>"}
+#       {"file": "<path>", "old_line": 7, "body": "<body file>"},
+#       {"file": "<path>", "body": "<body file>"}
 #     ]
 #   }
-# The verdict picks the overview's form: REQUEST_CHANGES opens a resolvable
-# thread, the others post a non-resolvable note. Inline notes stay resolvable.
+# VERDICT repeats the manifest's, so the one prompt shows it; a mismatch posts
+# nothing. The verdict picks the overview's form: REQUEST_CHANGES opens a
+# resolvable thread, the others post a non-resolvable note. Inline notes stay
+# resolvable; one without line or old_line is a file-level note.
 # With head_sha, the MR head is checked before anything is posted, and the
 # approval passes --sha too. The whole manifest is validated before anything is
 # posted; on a failure mid-batch the script stops and reports what was and was
@@ -29,7 +32,7 @@ die() {
 }
 
 usage() {
-    die "usage: post-mr-review.sh <MR_IID_OR_URL> <MANIFEST_JSON>"
+    die "usage: post-mr-review.sh <MR_IID_OR_URL> <APPROVE|REQUEST_CHANGES|COMMENT> <MANIFEST_JSON>"
 }
 
 # The ask rule is the literal canonical path. Another spelling (scripts/./…,
@@ -38,9 +41,17 @@ usage() {
 CANONICAL="$HOME/.claude/skills/mn-review/scripts/post-mr-review.sh"
 [ "$0" = "$CANONICAL" ] || die "run it as $CANONICAL (got '$0'); any other spelling of the path skips the ask gate"
 
-[ $# -eq 2 ] || usage
+[ $# -eq 3 ] || usage
 RAW_TARGET="$1"
-MANIFEST="$2"
+ARG_VERDICT="$2"
+MANIFEST="$3"
+
+# The verdict is on the command line so the one prompt shows it; it must match
+# the manifest's.
+case "$ARG_VERDICT" in
+    APPROVE|REQUEST_CHANGES|COMMENT) ;;
+    *) die "the verdict must be APPROVE, REQUEST_CHANGES or COMMENT, not '$ARG_VERDICT'" ;;
+esac
 
 case "$RAW_TARGET" in
     ""|-*) die "the merge request must be an IID or an MR URL, not '$RAW_TARGET'" ;;
@@ -75,20 +86,20 @@ jq -e . "$MANIFEST" >/dev/null 2>&1 || die "the manifest $MANIFEST is not valid 
 
 ERRORS=$(jq -r '
     def sha_ok: type == "string" and test("^[0-9a-f]{40}$");
-    def path_ok: type == "string" and length > 0 and (test("^-") | not) and (test("[\\t\\n\\r\\\\]") | not);
+    def path_ok: type == "string" and length > 0 and (test("^-") | not) and (test("[\\t\\n\\r\\\\\u001f]") | not);
     if type != "object" then "the manifest is not a JSON object" else
         ((keys - ["verdict", "head_sha", "overview", "inline"])[] | "unknown key \(tojson)"),
         (if (.verdict | IN("APPROVE", "REQUEST_CHANGES", "COMMENT")) then empty else "verdict must be APPROVE, REQUEST_CHANGES or COMMENT" end),
         (if .verdict == "APPROVE" and ((.head_sha | sha_ok) | not) then "an APPROVE verdict needs head_sha, the full 40-digit SHA of the reviewed head"
          elif has("head_sha") and ((.head_sha | sha_ok) | not) then "head_sha must be the full 40-digit SHA of the reviewed head"
          else empty end),
-        (if (.overview | path_ok) then empty else "overview must be the path of the overview body file" end),
+        (if (.overview | path_ok) then empty else "overview must be the path of the overview body file, without a leading -, control characters or backslashes" end),
         (if has("inline") and (.inline | type) != "array" then "inline must be an array" else empty end),
         ((.inline // []) | if type == "array" then to_entries[] else empty end | .key as $i | .value |
             if type != "object" then "inline[\($i)] is not an object" else
                 ((keys - ["file", "line", "old_line", "body"])[] | "inline[\($i)]: unknown key \(tojson)"),
-                (if (.file | path_ok) then empty else "inline[\($i)]: file must be a path that does not start with -" end),
-                (if (.body | path_ok) then empty else "inline[\($i)]: body must be the path of its body file" end),
+                (if (.file | path_ok) then empty else "inline[\($i)]: file must be a path without a leading -, control characters or backslashes" end),
+                (if (.body | path_ok) then empty else "inline[\($i)]: body must be the path of its body file, without a leading -, control characters or backslashes" end),
                 (if has("line") and has("old_line") then "inline[\($i)]: line and old_line are exclusive"
                  elif has("line") and ((.line | tostring | test("^[0-9]+(:[0-9]+)?$")) | not) then "inline[\($i)]: line takes N or A:B"
                  elif has("old_line") and ((.old_line | tostring | test("^[0-9]+$")) | not) then "inline[\($i)]: old_line takes N"
@@ -99,15 +110,18 @@ ERRORS=$(jq -r '
 $ERRORS"
 
 VERDICT=$(jq -r .verdict "$MANIFEST")
+[ "$VERDICT" = "$ARG_VERDICT" ] || die "the command line says $ARG_VERDICT but the manifest says $VERDICT; nothing was posted"
 HEAD_SHA=$(jq -r '.head_sha // ""' "$MANIFEST")
 OVERVIEW=$(jq -r .overview "$MANIFEST")
 body_ok "$OVERVIEW" || die "overview body file '$OVERVIEW' must be a non-empty regular file under /tmp; nothing was posted"
 
-# One "file\tline-flag\tline\tbody" row per inline note, in manifest order.
+# One "file line-flag line body" row per inline note, in manifest order,
+# separated by \x1f: a tab is IFS whitespace, so read would merge the empty
+# fields of a file-level note and shift its body into the flag.
 INLINE=$(jq -r '(.inline // [])[]
     | [.file, (if has("line") then "--line" elif has("old_line") then "--old-line" else "" end),
-       ((.line // .old_line // "") | tostring), .body] | @tsv' "$MANIFEST")
-while IFS=$'\t' read -r _ _ _ body; do
+       ((.line // .old_line // "") | tostring), .body] | join("\u001f")' "$MANIFEST")
+while IFS=$'\x1f' read -r _ _ _ body; do
     [ -n "$body" ] || continue
     body_ok "$body" || die "inline body file '$body' must be a non-empty regular file under /tmp; nothing was posted"
 done <<EOF
@@ -120,7 +134,7 @@ case "$VERDICT" in
     REQUEST_CHANGES) STEPS+=("overview note (resolvable thread) from $OVERVIEW") ;;
     *) STEPS+=("overview note (non-resolvable) from $OVERVIEW") ;;
 esac
-while IFS=$'\t' read -r file flag line body; do
+while IFS=$'\x1f' read -r file flag line body; do
     [ -n "$file" ] || continue
     STEPS+=("inline note on $file${flag:+ $flag $line} from $body")
 done <<EOF
@@ -161,7 +175,7 @@ else
 fi
 step=$((step + 1))
 
-while IFS=$'\t' read -r file flag line body <&3; do
+while IFS=$'\x1f' read -r file flag line body <&3; do
     [ -n "$file" ] || continue
     if [ -n "$flag" ]; then
         glab mr note create "$MR" "${REPO_FLAG[@]}" --file "$file" "$flag" "$line" < "$body" || report_failure "$step"
