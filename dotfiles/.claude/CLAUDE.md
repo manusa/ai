@@ -48,6 +48,16 @@ prompt and the user's read-only allowlist never fires. Minimize that friction:
   `sandbox.excludedCommands` match, re-sandboxing it — a sandboxed `go test`/`make test` can't
   reach the gpg-agent socket, so fixture `git commit`s fail with `exit status 128`. Run those bare.
 
+## Spawning subagents
+
+- **Binds any orchestration, not only skills**, including a session acting as an
+  orchestrator ("Oracle"). An independent review or check goes to a **fresh** agent with
+  an explicit non-fork `subagent_type` (`general-purpose`), never `fork`, and never to an
+  agent that wrote the change or proposed its design; its brief carries the target, the
+  files and the method, not the spawner's conclusions. Continuation work, such as shipping
+  a change with `mn-pr`, goes to a **fork** (`subagent_type: fork`) of the session that
+  did the work; continuing that same agent (SendMessage) is fine.
+
 ## Sandbox: GitHub commands are excluded from it (keyring auth); writes are gated
 
 `gh`'s token lives in the OS **keyring** (`~/.config/gh/hosts.yml` has no

@@ -175,6 +175,8 @@ If the working tree is clean and there are only unpushed commits to ship (Existi
 
 You are dispatched when an orchestrating session (an Oracle, a driver, any agent that is not the human) invoked this skill or briefed you to follow it. You cannot ask the human (subagents have no `AskUserQuestion`), and an approval you receive is relayed, so a dispatched run has two phases. The files written in Prepare are the contract for Execute.
 
+Shipping is continuation work: an orchestrator dispatching this skill for work it or one of its children did runs the mn-pr agent as a fork (`subagent_type: fork`) of the session that did the work, so the commit message and PR body come from the context that made the change. When a child did the work, the fork is the child's: ask that child to dispatch it. Moving from Prepare to Execute continues the same agent, as below.
+
 **Prepare** (the default):
 
 - Never ask the human and never wait yourself. Write nothing to git or the forge: no checkout, add, commit, push or `gh pr create`.
