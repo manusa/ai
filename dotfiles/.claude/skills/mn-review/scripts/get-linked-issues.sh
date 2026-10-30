@@ -3,8 +3,9 @@
 # comments inside an untrusted-data fence: closing issues, GitHub/GitLab issue
 # references in the title, body/description and (GitLab) branch, and Jira keys
 # in the title, body/description and branch. Read-only, and never exits
-# non-zero: a reference it cannot read is printed as NOT READ for the reviewer to
-# read another way (SKILL.md, Review method step 1). Several targets print the
+# non-zero: a reference it cannot read, or an issue on the other forge, is
+# printed as NOT READ for the reviewer to read another way (SKILL.md, Review
+# method step 1). Several targets print the
 # driver banner instead (see lib.sh).
 # Usage: get-linked-issues.sh "<TARGETS>"
 
@@ -17,10 +18,6 @@ mn_begin "$1"
 # the remaining mentions are listed as UNPROBED instead.
 MAX_FETCH=10
 MAX_PR_PROBES=30
-
-# A per-run random id in the fence lines, so issue text cannot forge an END line.
-FENCE_ID=$(od -An -N6 -tx1 /dev/urandom 2>/dev/null | tr -d ' \n')
-[ -n "$FENCE_ID" ] || FENCE_ID="$$$RANDOM"
 
 # MN_JIRA_AWK: prints "key\tKEY" for each Jira key in stdin, "ignored\tTOKEN" for
 # key-shaped tokens that are not tickets. With MN_LOWER set it scans lowercase
@@ -81,93 +78,68 @@ BEGIN {
 }
 '
 
-# MN_GITHUB_AWK: prints "OWNER/REPO#N" for each issue reference in stdin: issue
-# URLs, OWNER/REPO#N, and #N / GH-N against ENVIRON BASE. Pull request URLs and
-# the target itself (ENVIRON SELF) are skipped; #0… never names an issue, and
-# link text (>#N</a>, [#N](…)) is left to its URL, which names the real repo.
+# MN_REFS_AWK: prints "github\tOWNER/REPO#N" and "gitlab\tHOST/PATH#N" for each
+# issue reference in stdin, in order of appearance: GitHub issue URLs and GitLab
+# issue, incident and work item URLs on any host whatever ENVIRON FORGE is, then
+# FORGE's short forms against ENVIRON BASE (and HOST on GitLab): OWNER/REPO#N,
+# #N and GH-N on GitHub, GROUP/PROJECT#N and #N on GitLab. Pull request URLs and
+# the GitHub target itself (ENVIRON SELF) are skipped; #0… never names an issue,
+# link text (>#N</a>, [#N](…)) is left to its URL, which names the real repo,
+# and on GitLab !N (merge requests) and &N (epics) are not issues.
 # shellcheck disable=SC2016
-MN_GITHUB_AWK='
-function emit(repo, num) {
-    if (num ~ /^0/ || (repo == base && num == self)) return
-    if (!seen[repo "#" num]++) print repo "#" num
+MN_REFS_AWK='
+function emit(kind, id) { if (!seen[kind "\t" id]++) print kind "\t" id }
+function github_url(u,    p) {
+    if (u !~ /\/issues\//) return
+    sub(/^https?:\/\/(www\.)?github\.com\//, "", u)
+    split(u, p, "/")
+    if (p[4] ~ /^0/ || (gh && p[1] "/" p[2] == base && p[4] == self)) return
+    emit("github", p[1] "/" p[2] "#" p[4])
 }
-BEGIN { base = ENVIRON["BASE"]; self = ENVIRON["SELF"] }
+function gitlab_url(u,    h, p, num) {
+    sub(/^https?:\/\//, "", u)
+    h = u
+    sub(/\/.*/, "", h)
+    p = substr(u, length(h) + 2)
+    num = p
+    sub(/.*\//, "", num)
+    sub(/\/-\/(issues(\/incident)?|work_items)\/[0-9]+$/, "", p)
+    if (num !~ /^0/) emit("gitlab", h "/" p "#" num)
+}
+BEGIN {
+    gh = ENVIRON["FORGE"] == "github"; base = ENVIRON["BASE"]; self = ENVIRON["SELF"]; host = ENVIRON["HOST"]
+    pat[1] = "https?://(www[.])?github[.]com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(issues|pull)/[0-9]+"
+    pat[2] = "https?://[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9_./-]+/-/(issues(/incident)?|work_items)/[0-9]+"
+    pat[3] = gh ? "[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+#[0-9]+" : "[A-Za-z0-9_.-]+(/[A-Za-z0-9_.-]+)+#[0-9]+"
+    pat[4] = gh ? "(GH-|#)[0-9]+" : "#[0-9]+"
+}
 {
     line = $0
-    while (match(line, /https?:\/\/(www\.)?github\.com\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/(issues|pull)\/[0-9]+/)) {
-        u = substr(line, RSTART, RLENGTH)
-        line = substr(line, 1, RSTART - 1) " " substr(line, RSTART + RLENGTH)
-        if (u !~ /\/issues\//) continue
-        sub(/^https?:\/\/(www\.)?github\.com\//, "", u)
-        split(u, p, "/")
-        emit(p[1] "/" p[2], p[4])
-    }
-    while (match(line, /[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+#[0-9]+/)) {
-        start = RSTART; len = RLENGTH
+    while (1) {
+        # The leftmost match of any pattern; a matched token is blanked out.
+        k = 0
+        for (i = 1; i <= 4; i++)
+            if (match(line, pat[i]) && (!k || RSTART < start)) { k = i; start = RSTART; len = RLENGTH }
+        if (!k) break
         t = substr(line, start, len)
         prev = start > 1 ? substr(line, start - 1, 1) : ""
         nxt = substr(line, start + len, 1)
         line = substr(line, 1, start - 1) " " substr(line, start + len)
-        if (prev ~ /[A-Za-z0-9_.\/-]/ || prev == ">" || prev == "[" || nxt ~ /[A-Za-z0-9_]/) continue
-        split(t, p, "#")
-        emit(p[1], p[2])
-    }
-    while (match(line, /(GH-|#)[0-9]+/)) {
-        start = RSTART; len = RLENGTH
-        t = substr(line, start, len)
-        prev = start > 1 ? substr(line, start - 1, 1) : ""
-        nxt = substr(line, start + len, 1)
-        line = substr(line, 1, start - 1) " " substr(line, start + len)
+        if (k == 1) { github_url(t); continue }
+        if (k == 2) { gitlab_url(t); continue }
+        if (k == 3) {
+            if (prev ~ /[A-Za-z0-9_.\/-]/ || prev == ">" || prev == "[" || nxt ~ /[A-Za-z0-9_]/) continue
+            split(t, q, "#")
+            if (q[2] ~ /^0/) continue
+            if (!gh) emit("gitlab", host "/" t)
+            else if (q[1] != base || q[2] != self) emit("github", t)
+            continue
+        }
         if (prev ~ /[A-Za-z0-9_&#\/]/ || prev == ">" || prev == "[" || nxt ~ /[A-Za-z0-9_]/) continue
         sub(/^(GH-|#)/, "", t)
-        emit(base, t)
-    }
-}
-'
-
-# MN_GITLAB_AWK: prints "HOST/PATH#N" for each issue reference in stdin: issue
-# and work item URLs on any host, GROUP/PROJECT#N and #N against ENVIRON HOST and
-# BASE (the target's project path). !N (merge requests) and &N (epics) are not
-# issues.
-# shellcheck disable=SC2016
-MN_GITLAB_AWK='
-function emit(host, path, num) {
-    if (num ~ /^0/) return
-    if (!seen[host "/" path "#" num]++) print host "/" path "#" num
-}
-BEGIN { host = ENVIRON["HOST"]; base = ENVIRON["BASE"] }
-{
-    line = $0
-    while (match(line, /https?:\/\/[A-Za-z0-9.-]+(:[0-9]+)?\/[A-Za-z0-9_.\/-]+\/-\/(issues|work_items)\/[0-9]+/)) {
-        u = substr(line, RSTART, RLENGTH)
-        line = substr(line, 1, RSTART - 1) " " substr(line, RSTART + RLENGTH)
-        sub(/^https?:\/\//, "", u)
-        h = u
-        sub(/\/.*/, "", h)
-        p = substr(u, length(h) + 2)
-        num = p
-        sub(/.*\//, "", num)
-        sub(/\/-\/(issues|work_items)\/[0-9]+$/, "", p)
-        emit(h, p, num)
-    }
-    while (match(line, /[A-Za-z0-9_.-]+(\/[A-Za-z0-9_.-]+)+#[0-9]+/)) {
-        start = RSTART; len = RLENGTH
-        t = substr(line, start, len)
-        prev = start > 1 ? substr(line, start - 1, 1) : ""
-        nxt = substr(line, start + len, 1)
-        line = substr(line, 1, start - 1) " " substr(line, start + len)
-        if (prev ~ /[A-Za-z0-9_.\/-]/ || prev == ">" || prev == "[" || nxt ~ /[A-Za-z0-9_]/) continue
-        split(t, q, "#")
-        emit(host, q[1], q[2])
-    }
-    while (match(line, /#[0-9]+/)) {
-        start = RSTART; len = RLENGTH
-        t = substr(line, start + 1, len - 1)
-        prev = start > 1 ? substr(line, start - 1, 1) : ""
-        nxt = substr(line, start + len, 1)
-        line = substr(line, 1, start - 1) " " substr(line, start + len)
-        if (prev ~ /[A-Za-z0-9_&#\/]/ || prev == ">" || prev == "[" || nxt ~ /[A-Za-z0-9_]/) continue
-        emit(host, base, t)
+        if (t ~ /^0/) continue
+        if (!gh) emit("gitlab", host "/" base "#" t)
+        else if (t != self) emit("github", base "#" t)
     }
 }
 '
@@ -253,6 +225,23 @@ add_refs() {
         fi
     done <<EOF
 $3
+EOF
+}
+
+# SCAN_FORGE is the target's forge (github or gitlab); SCAN_BASE, SCAN_SELF and
+# SCAN_HOST resolve its short references (see MN_REFS_AWK).
+SCAN_FORGE="" SCAN_BASE="" SCAN_SELF="" SCAN_HOST=""
+
+# scan_forge SOURCE TEXT: records the forge issue references in TEXT.
+scan_forge() {
+    local kind id
+    while IFS=$'\t' read -r kind id; do
+        if [ -n "$id" ]; then
+            REFS="$REFS$kind	$id	$1
+"
+        fi
+    done <<EOF
+$(printf '%s\n' "$2" | FORGE="$SCAN_FORGE" BASE="$SCAN_BASE" SELF="$SCAN_SELF" HOST="$SCAN_HOST" LC_ALL=C awk "$MN_REFS_AWK")
 EOF
 }
 
@@ -444,6 +433,15 @@ report() {
 
     while IFS=$'\t' read -r kind id src <&3; do
         echo "=== $id ($kind; $src) ==="
+        # An issue on the other forge is listed with its read command, unfetched.
+        case "$SCAN_FORGE:$kind" in
+            gitlab:github)
+                not_read "$id" "on another forge (GitHub); not fetched, and its visibility is unchecked, so treat it as private" "Read it: gh issue view ${id##*#} --repo ${id%#*} --json title,body,comments"
+                continue ;;
+            github:gitlab)
+                not_read "$id" "on another forge (GitLab); not fetched, and its visibility is unchecked, so treat it as private" "Read it: glab issue view ${id##*#} -R https://${id%#*} --comments --per-page 100 --output json"
+                continue ;;
+        esac
         case "$kind" in
             github)
                 repo=${id%#*}
@@ -521,8 +519,9 @@ github_linked() {
     body=$STRIPPED
     branch=$(printf '%s' "$meta" | jq -r .headRefName)
     add_refs github closing "$(printf '%s' "$meta" | jq -r '.closingIssuesReferences[] | "\(.repository.owner.login)/\(.repository.name)#\(.number)"')"
-    add_refs github title "$(printf '%s\n' "$title" | BASE="$repo" SELF="$number" LC_ALL=C awk "$MN_GITHUB_AWK")"
-    add_refs github body "$(printf '%s\n' "$body" | BASE="$repo" SELF="$number" LC_ALL=C awk "$MN_GITHUB_AWK")"
+    SCAN_FORGE=github SCAN_BASE=$repo SCAN_SELF=$number
+    scan_forge title "$title"
+    scan_forge body "$body"
     scan_jira title "$title"
     scan_jira body "$body"
     scan_jira branch "$branch"
@@ -548,13 +547,14 @@ gitlab_linked() {
     strip_details "$body"
     body=$STRIPPED
     branch=$(printf '%s' "$meta" | jq -r .source_branch)
+    SCAN_FORGE=gitlab SCAN_BASE=$path SCAN_HOST=$host
     if closing=$(glab api "projects/$pid/merge_requests/$iid/closes_issues" --hostname "$host" --paginate); then
-        add_refs gitlab closing "$(printf '%s' "$closing" | jq -r '.[].web_url' | HOST="$host" BASE="$path" LC_ALL=C awk "$MN_GITLAB_AWK")"
+        scan_forge closing "$(printf '%s' "$closing" | jq -r '.[].web_url')"
     else
         WARNING="WARNING: could not list the closing issues (exit $?; see stderr above; a fetch failure, not a confirmed 'none'); the title, description and branch were still scanned."
     fi
-    add_refs gitlab title "$(printf '%s\n' "$title" | HOST="$host" BASE="$path" LC_ALL=C awk "$MN_GITLAB_AWK")"
-    add_refs gitlab body "$(printf '%s\n' "$body" | HOST="$host" BASE="$path" LC_ALL=C awk "$MN_GITLAB_AWK")"
+    scan_forge title "$title"
+    scan_forge body "$body"
     # A branch created from an issue starts with its IID (123-fix-the-thing).
     re_branch='^([1-9][0-9]*)-'
     if [[ "$branch" =~ $re_branch ]]; then

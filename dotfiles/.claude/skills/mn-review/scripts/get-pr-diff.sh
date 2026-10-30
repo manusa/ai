@@ -1,6 +1,6 @@
 #!/bin/bash
-# Diff of the review target (GitHub PR or GitLab MR, as a plain git patch), or of
-# the worktree when no target is given.
+# Diff of the review target (GitHub PR or GitLab MR, as a plain git patch, inside
+# an untrusted-data fence), or of the worktree when no target is given.
 # Usage: get-pr-diff.sh "<TARGETS>"
 
 . "$(dirname "$0")/lib.sh"
@@ -26,6 +26,13 @@ fi
 
 ID=$(mn_id "$TARGET")
 case "$(mn_forge "$TARGET")" in
-    github) gh pr diff "$ID" || echo "ERROR: 'gh pr diff $ID' failed (exit $?; see stderr above; this is a fetch failure, not a confirmed empty diff)" ;;
-    gitlab) mn_glab_mr "$ID"; glab mr diff "$MN_MR" "${MN_REPO_FLAG[@]}" --raw || echo "ERROR: 'glab mr diff $ID --raw' failed (exit $?; see stderr above; this is a fetch failure, not a confirmed empty diff)" ;;
+    github) diff=$(gh pr diff "$ID") ;;
+    gitlab) mn_glab_mr "$ID"; diff=$(glab mr diff "$MN_MR" "${MN_REPO_FLAG[@]}" --raw) ;;
 esac
+rc=$?
+if [ "$rc" -eq 0 ]; then
+    mn_fenced "diff of $TARGET" "$diff"
+else
+    echo "ERROR: the diff of '$TARGET' could not be fetched (exit $rc; see stderr above; this is a fetch failure, not a confirmed empty diff)"
+fi
+exit 0

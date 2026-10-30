@@ -3,7 +3,8 @@
 # URL), or the worktree status when no target is given. Several targets print
 # the driver banner instead (see lib.sh). A target's details open with a STATE
 # block read from the forge's JSON, the only source for its live state
-# (SKILL.md, Review method). Never exits non-zero.
+# (SKILL.md, Review method), then the prose view inside an untrusted-data fence.
+# Never exits non-zero.
 # Usage: get-pr-details.sh "<TARGETS>"
 
 . "$(dirname "$0")/lib.sh"
@@ -56,7 +57,11 @@ case "$(mn_forge "$TARGET")" in
         print_state "gh pr view $ID --json" \
             '"state: \(.state | v)", "draft: \(.isDraft | v)", "merge state: \(.mergeStateStatus | v)", "head sha: \(.headRefOid | v)", "author: @\(.author.login | v)", "merged at: \(.mergedAt | v)"' \
             gh pr view "$ID" --json state,mergeStateStatus,isDraft,headRefOid,author,mergedAt
-        gh pr view "$ID" || echo "ERROR: 'gh pr view $ID' failed (exit $?). The stderr above distinguishes a missing/wrong PR from a network/sandbox/auth failure; do not treat this as a confirmed 'not found'."
+        if view=$(gh pr view "$ID"); then
+            mn_fenced "details of $TARGET" "$view"
+        else
+            echo "ERROR: 'gh pr view $ID' failed (exit $?). The stderr above distinguishes a missing/wrong PR from a network/sandbox/auth failure; do not treat this as a confirmed 'not found'."
+        fi
         ;;
     gitlab)
         echo "MODE: Merge request review (GitLab, glab)"
@@ -65,7 +70,11 @@ case "$(mn_forge "$TARGET")" in
         print_state "glab mr view $ID --output json" \
             '"state: \(.state | v)", "draft: \(.draft | v)", "merge status: \(.detailed_merge_status | v)", "has conflicts: \(.has_conflicts | v)", "head sha: \(.sha | v)", "author: @\(.author.username | v)", "merged at: \(.merged_at | v)"' \
             glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}" --output json
-        glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}" || echo "ERROR: 'glab mr view $ID' failed (exit $?). The stderr above distinguishes a missing/wrong MR from a network/VPN/auth failure; do not treat this as a confirmed 'not found'."
+        if view=$(glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}"); then
+            mn_fenced "details of $TARGET" "$view"
+        else
+            echo "ERROR: 'glab mr view $ID' failed (exit $?). The stderr above distinguishes a missing/wrong MR from a network/VPN/auth failure; do not treat this as a confirmed 'not found'."
+        fi
         ;;
 esac
 exit 0
