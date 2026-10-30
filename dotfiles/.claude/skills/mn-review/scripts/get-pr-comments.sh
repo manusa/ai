@@ -1,7 +1,7 @@
 #!/bin/bash
 # The full discussion of the review target: every comment and review, inline
 # (diff-anchored) threads included, each with author, time, anchor and thread
-# state. "N/A" for a worktree review.
+# state, inside an untrusted-data fence. "N/A" for a worktree review.
 # Usage: get-pr-comments.sh "<TARGETS>"
 
 . "$(dirname "$0")/lib.sh"
@@ -34,14 +34,17 @@ github_comments() {
         --jq '.[] | select(.body != "" or .state != "COMMENTED") | "--- @\(.user.login) [\(.state)] (\(.submitted_at)):\n\(.body)\n"') || return $?
     inline=$(gh api "repos/$repo/pulls/$number/comments?per_page=100" --paginate \
         --jq '.[] | "--- @\(.user.login) (\(.created_at)) on \(.path):\(if .line == null then "\(.original_line) (outdated)" else (.line | tostring) end) [\(.side)]\(if .in_reply_to_id then " (reply)" else "" end):\n\(.body)\n"') || return $?
-    section "Comments" "$issue_comments"
-    section "Reviews" "$reviews"
-    section "Inline review comments (new-file line numbers; [LEFT] marks a removed line; (outdated) marks a line no longer in the diff)" "$inline"
+    mn_fenced "discussion of $TARGET" "$(
+        section "Comments" "$issue_comments"
+        section "Reviews" "$reviews"
+        section "Inline review comments (new-file line numbers; [LEFT] marks a removed line; (outdated) marks a line no longer in the diff)" "$inline"
+    )"
 }
 
 gitlab_comments() {
     local threads
-    threads=$(glab mr view "$ID" --comments --per-page 100 --output json | jq -r '
+    mn_glab_mr "$ID"
+    threads=$(glab mr view "$MN_MR" "${MN_REPO_FLAG[@]}" --comments --per-page 100 --output json | jq -r '
         if has("Discussions") then . else error("glab mr view JSON carries no Discussions key") end
         | .sha as $head
         | .Discussions[] | select(any(.notes[]; .system == false))
@@ -58,7 +61,7 @@ gitlab_comments() {
                 else "" end)
              + ":",
            .body, "")') || return $?
-    section "Discussion threads (path:line is a new-file line; (old line N) a removed line; (outdated) a superseded diff version)" "$threads"
+    mn_fenced "discussion of $TARGET" "$(section "Discussion threads (path:line is a new-file line; (old line N) a removed line; (outdated) a superseded diff version)" "$threads")"
 }
 
 case "$(mn_forge "$TARGET")" in
