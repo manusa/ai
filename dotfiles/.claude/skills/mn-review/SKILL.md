@@ -104,6 +104,7 @@ Work through these in order. The dimensions under "Guidelines" are the checklist
 3. **Try to disprove every finding before you emit it.** Re-read the surrounding code and check whether a test, a type, a guard, or a caller already rules the problem out. Drop what you can disprove; keep the rest together with the evidence that survived.
    - **A finding that a code path "doesn't handle" some condition** (records no error, emits no warning, never falls back) **has to be proven by reading the function that would record it, through to the leaf, not inferred from the call site and not from the diff alone.** The handling is often an early-return guard one function deeper, in code this change did not touch, so you only find it by opening that callee and reading it top to bottom. Files the change doesn't touch are the same at its base, so a local clone of the target repository at the base branch is usually enough to read an untouched callee: use `Read`, or `git show origin/<base>:<path>`, which is read-only. If the finding rests on a test you flagged as missing, trace what that test would exercise through the real source first; it is the cheapest disproof available. Do this before posting such a finding or escalating it to a blocking verdict. If you can't read the leaf, report the finding as a question or a Minor, never as a blocker.
 4. **Evidence, not impressions.** Every claim in the report cites `file:line` or command output. No "looks fine", no "might be an issue".
+5. **Live state comes only from the STATE block.** Whether the PR/MR is open, merged or closed, a draft, mergeable or conflicting is what `get-pr-details.sh` printed in its STATE block, and the report's `**State:**` line copies it. Never infer state from SHAs, branch ancestry or a merge base: a branch whose base equals the default branch is up to date, not merged. If the block says `unknown`, the report says unknown. On GitLab, `has conflicts` is not yet checked while `merge status` is `unchecked` or `checking`.
 
 ### Guidelines
 
@@ -153,6 +154,8 @@ Provide your review in the following format. Severities are `Critical` (must fix
 #### For Pull Request / Merge Request Reviews:
 ```markdown
 ## Pull Request Review: #<PR_NUMBER>      (GitLab: ## Merge Request Review: !<MR_NUMBER>)
+
+**State:** <Required. Copied from the STATE block of get-pr-details.sh: state, draft, merge state (GitLab: merge status and has conflicts) and head sha; "unknown" when the block says so (Review method, step 5)>
 
 ### Summary
 <Brief summary of the change and its purpose>
@@ -267,6 +270,8 @@ GitHub rejects `APPROVE` and `REQUEST_CHANGES` on your own PR; use `COMMENT` the
 For example, to approve PR #42, write this body file:
 ```markdown
 ## Pull Request Review: #42
+
+**State:** OPEN, not a draft, merge state CLEAN, head abc123…
 
 ### Summary
 This PR adds a new feature to improve the user experience.
@@ -388,7 +393,7 @@ When `$ARGUMENTS` holds two or more targets, the pre-fetch scripts above print `
    Fill `<REPORT_PATH>` with one file per target in the session scratchpad directory (or `/tmp/claude/`), for example `review-<repo>-<number>.md`.
 
 2. **Consolidate.** When every reviewer has reported, print:
-   - a summary table: target, title, verdict, Critical / Important / Minor counts, whether the reviewer was blocked (fetch failure, untrusted change, missing CLI), and any referenced issue or ticket it could not read;
+   - a summary table: target, title, state, verdict, Critical / Important / Minor counts, whether the reviewer was blocked (fetch failure, untrusted change, missing CLI), and any referenced issue or ticket it could not read. Fill the state column yourself: run `~/.claude/skills/mn-review/scripts/get-pr-details.sh <target>` for each target once the reviewers have reported (read-only, prompt-free) and copy its STATE block's state, draft and conflict (GitHub: merge state) values, or `unknown`. Never take the state from a reviewer's report or prose (Review method, step 5);
    - each reviewer's report verbatim under its own `## <target>` heading, proposed inline comments included.
 
    Then **STOP and wait for my approval, per target**. "Approve 1 and 3, revise 2: …" is a normal answer.
